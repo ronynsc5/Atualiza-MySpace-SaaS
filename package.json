@@ -1,0 +1,15 @@
+{
+  "name": "mymind-pro",
+  "version": "3.13.0",
+  "private": true,
+  "scripts": {
+    "start": "npx serve .",
+    "dev": "npx serve .",
+    "deploy": "vercel --prod"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "serve": "latest",
+    "vercel": "latest"
+  }
+}
