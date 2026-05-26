@@ -49,6 +49,10 @@
       } else if (action.type === 'delete_node') {
         const idx = nodes.findIndex(n => String(n.id) === String(action.id));
         if (idx >= 0) nodes.splice(idx, 1);
+        // remove connections involving deleted node
+        if (clone.connections) {
+          clone.connections = clone.connections.filter(c => String(c.from) !== String(action.id) && String(c.to) !== String(action.id));
+        }
       } else if (action.type === 'create_connection') {
         const conns = clone.connections || [];
         conns.push({ id: 'ac_' + Date.now(), from: action.from, to: action.to, style: action.style || 'curved', label: action.label || '' });
@@ -59,10 +63,42 @@
     if (clone.nodes) clone.nodes = nodes;
     else if (clone.cards) clone.cards = nodes;
 
+    // Salva via API do MySpace (IndexedDB + localStorage)
+    try {
+      if (window.MySpace && window.MySpace.store && typeof window.MySpace.store.load === 'function') {
+        // Injeta direto no store e salva
+        const store = window.MySpace.store;
+        if (store._data) {
+          store._data.nodes = nodes;
+          if (clone.connections) store._data.connections = clone.connections;
+        }
+      }
+    } catch(_) {}
+
+    // Salva em todos os storages
     localStorage.setItem('myspace-v3', JSON.stringify(clone));
     localStorage.setItem('myspace-v2', JSON.stringify(clone));
-    if (window.MySpace && typeof window.MySpace.redraw === 'function') window.MySpace.redraw();
-    setTimeout(() => { try { if (typeof draw === 'function') draw(); } catch (_) { } }, 100);
+
+    // Usa API oficial se disponível
+    if (window.MySpace && typeof window.MySpace.saveNow === 'function') {
+      window.MySpace.saveNow().catch(() => {});
+    }
+
+    // Recarrega via import
+    setTimeout(() => {
+      try {
+        if (window.MySpace && typeof window.MySpace.snapshot === 'function') {
+          // tenta forçar reload via importação
+          const raw = JSON.stringify(clone);
+          localStorage.setItem('myspace-v2', raw);
+          localStorage.setItem('myspace-v3', raw);
+          // dispara evento de reload
+          window.dispatchEvent(new CustomEvent('myspace:reload', { detail: clone }));
+        }
+        if (typeof draw === 'function') draw();
+        if (typeof resize === 'function') resize();
+      } catch(_) {}
+    }, 150);
   }
 
   function injectStyles() {
