@@ -14,11 +14,17 @@
   }
 
   const sb = window.supabase && SUPABASE_URL && SUPABASE_KEY
-    ? window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY)
+    ? window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
+        auth: {
+          persistSession: true,
+          autoRefreshToken: true,
+          storageKey: 'myspace-auth-v1'
+        }
+      })
     : null;
 
   window.MySpaceAuth = { client: sb, user: null, profile: null, isUnlocked: false };
-  window.MyMindAuth = window.MySpaceAuth; // compatibilidade com versões antigas
+  window.MyMindAuth = window.MySpaceAuth;
 
   function $(id){ return document.getElementById(id); }
   function escapeHtml(str){
