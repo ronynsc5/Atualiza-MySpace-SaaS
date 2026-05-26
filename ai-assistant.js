@@ -80,12 +80,13 @@
 
       #ms-ai-panel {
         position: fixed; right: 18px; bottom: 140px; z-index: 2599;
-        width: 360px; max-height: 560px; border-radius: 18px;
+        width: 420px; height: 620px; border-radius: 18px;
         background: var(--bg); border: 1px solid var(--border);
         box-shadow: 0 12px 48px var(--shadow2);
         display: none; flex-direction: column;
         font-family: 'Inter', system-ui, sans-serif;
-        overflow: hidden;
+        overflow: hidden; cursor: default;
+        resize: both;
       }
       #ms-ai-panel.show { display: flex; }
 
@@ -527,6 +528,30 @@
     });
 
     updateProviderTag();
+
+    // Drag functionality
+    const header = panel.querySelector('.ms-ai-header');
+    let dragging = false, ox = 0, oy = 0;
+    header.style.cursor = 'grab';
+    header.addEventListener('mousedown', (e) => {
+      if (e.target.closest('button')) return;
+      dragging = true;
+      const rect = panel.getBoundingClientRect();
+      ox = e.clientX - rect.left;
+      oy = e.clientY - rect.top;
+      header.style.cursor = 'grabbing';
+      e.preventDefault();
+    });
+    document.addEventListener('mousemove', (e) => {
+      if (!dragging) return;
+      const x = Math.max(0, Math.min(window.innerWidth - panel.offsetWidth, e.clientX - ox));
+      const y = Math.max(0, Math.min(window.innerHeight - panel.offsetHeight, e.clientY - oy));
+      panel.style.left = x + 'px';
+      panel.style.top = y + 'px';
+      panel.style.right = 'auto';
+      panel.style.bottom = 'auto';
+    });
+    document.addEventListener('mouseup', () => { dragging = false; header.style.cursor = 'grab'; });
   }
 
   document.addEventListener('DOMContentLoaded', () => {
