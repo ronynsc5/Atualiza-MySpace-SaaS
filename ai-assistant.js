@@ -31,25 +31,44 @@
 
   function applyActions(actions) {
     if (!Array.isArray(actions)) return;
+
+    // Primeira passagem: criar/editar/deletar nós (precisam existir antes de conectar)
     for (const action of actions) {
       try {
         if (action.type === 'create_node') {
           const x = action.x !== undefined ? action.x : (200 + Math.random() * 600);
           const y = action.y !== undefined ? action.y : (150 + Math.random() * 400);
           window.MySpace_addNode(action.title || 'Novo nó', action.note || '', x, y, action.node_type || 'card');
+
         } else if (action.type === 'update_node') {
           const patch = {};
           if (action.title !== undefined) patch.title = action.title;
-          if (action.note !== undefined) patch.note = action.note;
+          if (action.note  !== undefined) patch.note  = action.note;
           if (action.color !== undefined) patch.bgColor = action.color;
-          if (action.x !== undefined) patch.x = action.x;
-          if (action.y !== undefined) patch.y = action.y;
+          if (action.x     !== undefined) patch.x = action.x;
+          if (action.y     !== undefined) patch.y = action.y;
           window.MySpace_updateNode(action.id, patch);
+
         } else if (action.type === 'delete_node') {
           window.MySpace_deleteNode(action.id);
         }
-      } catch(e) {
+      } catch (e) {
         console.warn('[AI] action error:', action.type, e);
+      }
+    }
+
+    // Segunda passagem: criar conexões (depois que os nós já existem)
+    for (const action of actions) {
+      try {
+        if (action.type === 'create_connection') {
+          if (!action.from || !action.to) {
+            console.warn('[AI] create_connection sem from/to:', action);
+            continue;
+          }
+          window.MySpace_addConnection(action.from, action.to, action.style || 'curved');
+        }
+      } catch (e) {
+        console.warn('[AI] connection error:', action, e);
       }
     }
   }
