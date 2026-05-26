@@ -4,7 +4,7 @@
 // NÃO coloque access token do Mercado Pago aqui.
 
 window.SUPABASE_URL = 'https://pxigvmqxcqjgynqqelix.supabase.co';
-window.MYSPACE_SUPABASE_ANON_KEY = 'COLE_SUA_PUBLISHABLE_KEY_DO_SUPABASE_AQUI';
+window.MYSPACE_SUPABASE_ANON_KEY = 'sb_publishable_-2sY4tG_sRADyqPuaA-l2g_bw3W6EsS';
 
 window.MYSPACE_APP = {
   name: 'MySpace',
