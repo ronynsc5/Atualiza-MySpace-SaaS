@@ -1,15 +1,13 @@
 {
-  "name": "mymind-pro",
-  "version": "3.13.0",
+  "name": "myspace-pro-saas",
+  "version": "3.14.0",
   "private": true,
+  "type": "module",
   "scripts": {
-    "start": "npx serve .",
-    "dev": "npx serve .",
-    "deploy": "vercel --prod"
+    "dev": "vercel dev",
+    "start": "vercel dev"
   },
-  "dependencies": {},
   "devDependencies": {
-    "serve": "latest",
     "vercel": "latest"
   }
 }

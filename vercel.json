@@ -1,4 +1,6 @@
 {
-  "cleanUrls": true,
-  "trailingSlash": false
+  "version": 2,
+  "crons": [
+    { "path": "/api/cleanup-expired", "schedule": "0 3 * * *" }
+  ]
 }
