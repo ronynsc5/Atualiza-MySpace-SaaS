@@ -312,7 +312,7 @@
           </div>
           <div class="ms-ai-settings-field">
             <label>API Key</label>
-            <input id="ms-ai-key" type="password" placeholder="Cole sua chave aqui" value="${s.apiKey || ''}">
+            <input id="ms-ai-key" type="password" placeholder="Cole sua chave aqui" value="${s.apiKey || ''}" autocomplete="new-password">
             <div class="ms-ai-settings-hint">Sua chave fica salva só no seu navegador. Nunca é enviada para nossos servidores.</div>
           </div>
         </div>
