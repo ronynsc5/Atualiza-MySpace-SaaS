@@ -7597,7 +7597,49 @@ setTimeout(function(){
   try { if (typeof draw === 'function') draw(); } catch(err){ console.warn('[MySpace v3.13] initial draw failed', err); }
 })();
 </script>
-
+<script>
+/* MySpace AI Bridge - expõe addNode para o assistente de IA */
+(function(){
+  window.MySpace_addNode = function(title, note, x, y, type) {
+    try {
+      const n = createNode(x || 300, y || 300, type || 'card');
+      n.title = title || 'Novo nó';
+      n.note = note || '';
+      nodes.push(n);
+      selectNodeObj(n);
+      saveHist();
+      draw();
+      triggerSave();
+      return n;
+    } catch(e) { console.warn('[AI Bridge] addNode error:', e); return null; }
+  };
+  window.MySpace_deleteNode = function(id) {
+    try {
+      const idx = nodes.findIndex(n => String(n.id) === String(id));
+      if (idx >= 0) {
+        nodes.splice(idx, 1);
+        for (let i = connections.length - 1; i >= 0; i--) {
+          if (String(connections[i].from) === String(id) || String(connections[i].to) === String(id)) connections.splice(i, 1);
+        }
+        saveHist(); draw(); triggerSave();
+        return true;
+      }
+      return false;
+    } catch(e) { console.warn('[AI Bridge] deleteNode error:', e); return false; }
+  };
+  window.MySpace_updateNode = function(id, patch) {
+    try {
+      const n = nodes.find(n => String(n.id) === String(id));
+      if (n) { Object.assign(n, patch); saveHist(); draw(); triggerSave(); return true; }
+      return false;
+    } catch(e) { return false; }
+  };
+  window.MySpace_getNodes = function() {
+    try { return nodes.map(n => ({ id: n.id, title: n.title, note: n.note, type: n.type, x: n.x, y: n.y })); }
+    catch(e) { return []; }
+  };
+})();
+</script>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="./config.js"></script>
