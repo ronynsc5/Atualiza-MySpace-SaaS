@@ -26,79 +26,82 @@
 
   function applyActions(actions) {
     if (!Array.isArray(actions)) return;
-    const snap = getSnapshot();
+
+    // Pega o workspace atual
+    const snap = window.MySpace && typeof window.MySpace.snapshot === 'function'
+      ? window.MySpace.snapshot() : null;
     if (!snap) return;
-    const clone = JSON.parse(JSON.stringify(snap));
-    const nodes = clone.nodes || clone.cards || [];
+
+    const currentLevel = snap.currentLevel || 'root';
+    const workspace = snap.workspaces && snap.workspaces[currentLevel];
+    if (!workspace) return;
+
+    const nodes = workspace.nodes || [];
+    const connections = workspace.connections || [];
 
     for (const action of actions) {
       if (action.type === 'create_node') {
         const id = 'ai_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7);
-        const x = action.x ?? (200 + Math.random() * 400);
-        const y = action.y ?? (200 + Math.random() * 300);
-        nodes.push({ id, title: action.title || 'Novo nó', note: action.note || '', x, y, type: action.node_type || 'card', color: action.color || null, children: [] });
+        const x = action.x !== undefined ? action.x : (200 + Math.random() * 400);
+        const y = action.y !== undefined ? action.y : (200 + Math.random() * 300);
+        const newNode = {
+          id, type: action.node_type || 'card',
+          x, y, width: 200, height: 120,
+          title: action.title || 'Novo nó',
+          note: action.note || '',
+          bgColor: action.color || '#ffffff',
+          bgOpacity: 1, borderColor: '#e0e0dd', borderWidth: 1.5,
+          textColor: '#1a1a18', textSize: 13, textBold: true,
+          cornerRadius: 18, stylePreset: 'clean', opacity: 1,
+          children: [], projectId: currentLevel,
+          created: new Date().toISOString(), modified: new Date().toISOString()
+        };
+        nodes.push(newNode);
       } else if (action.type === 'update_node') {
         const node = nodes.find(n => String(n.id) === String(action.id));
         if (node) {
           if (action.title !== undefined) node.title = action.title;
           if (action.note !== undefined) node.note = action.note;
-          if (action.color !== undefined) node.color = action.color;
+          if (action.color !== undefined) node.bgColor = action.color;
           if (action.x !== undefined) node.x = action.x;
           if (action.y !== undefined) node.y = action.y;
+          node.modified = new Date().toISOString();
         }
       } else if (action.type === 'delete_node') {
         const idx = nodes.findIndex(n => String(n.id) === String(action.id));
         if (idx >= 0) nodes.splice(idx, 1);
-        // remove connections involving deleted node
-        if (clone.connections) {
-          clone.connections = clone.connections.filter(c => String(c.from) !== String(action.id) && String(c.to) !== String(action.id));
+        for (let i = connections.length - 1; i >= 0; i--) {
+          if (String(connections[i].from) === String(action.id) || String(connections[i].to) === String(action.id)) {
+            connections.splice(i, 1);
+          }
         }
       } else if (action.type === 'create_connection') {
-        const conns = clone.connections || [];
-        conns.push({ id: 'ac_' + Date.now(), from: action.from, to: action.to, style: action.style || 'curved', label: action.label || '' });
-        clone.connections = conns;
+        connections.push({
+          id: 'ac_' + Date.now(), from: action.from, to: action.to,
+          style: action.style || 'curved', label: action.label || '',
+          color: '#888', width: 1.5, arrow: 'end'
+        });
       }
     }
 
-    if (clone.nodes) clone.nodes = nodes;
-    else if (clone.cards) clone.cards = nodes;
+    workspace.nodes = nodes;
+    workspace.connections = connections;
 
-    // Salva via API do MySpace (IndexedDB + localStorage)
+    // Salva via commit + saveNow
     try {
-      if (window.MySpace && window.MySpace.store && typeof window.MySpace.store.load === 'function') {
-        // Injeta direto no store e salva
-        const store = window.MySpace.store;
-        if (store._data) {
-          store._data.nodes = nodes;
-          if (clone.connections) store._data.connections = clone.connections;
-        }
+      if (window.MySpace && typeof window.MySpace.commit === 'function') {
+        window.MySpace.commit('ai-action');
       }
-    } catch(_) {}
-
-    // Salva em todos os storages
-    localStorage.setItem('myspace-v3', JSON.stringify(clone));
-    localStorage.setItem('myspace-v2', JSON.stringify(clone));
-
-    // Usa API oficial se disponível
-    if (window.MySpace && typeof window.MySpace.saveNow === 'function') {
-      window.MySpace.saveNow().catch(() => {});
+      if (window.MySpace && typeof window.MySpace.saveNow === 'function') {
+        window.MySpace.saveNow().catch(() => {});
+      }
+      if (window.MySpace && typeof window.MySpace.redraw === 'function') {
+        window.MySpace.redraw();
+      }
+      if (typeof draw === 'function') setTimeout(draw, 100);
+    } catch(e) {
+      console.warn('[AI] applyActions error:', e);
     }
-
-    // Recarrega via import
-    setTimeout(() => {
-      try {
-        if (window.MySpace && typeof window.MySpace.snapshot === 'function') {
-          // tenta forçar reload via importação
-          const raw = JSON.stringify(clone);
-          localStorage.setItem('myspace-v2', raw);
-          localStorage.setItem('myspace-v3', raw);
-          // dispara evento de reload
-          window.dispatchEvent(new CustomEvent('myspace:reload', { detail: clone }));
-        }
-        if (typeof draw === 'function') draw();
-        if (typeof resize === 'function') resize();
-      } catch(_) {}
-    }, 150);
   }
 
   function injectStyles() {
