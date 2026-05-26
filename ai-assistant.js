@@ -5,7 +5,7 @@
 
   const SETTINGS_KEY = 'myspace-ai-settings';
   const CHAT_KEY = 'myspace-ai-chat';
-
+h
   function getSettings() {
     try { return JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}'); } catch (_) { return {}; }
   }
