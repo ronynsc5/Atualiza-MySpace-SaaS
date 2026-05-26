@@ -4,7 +4,7 @@
 // NÃO coloque access token do Mercado Pago aqui.
 
 window.SUPABASE_URL = 'https://pxigvmqxcqjgynqqelix.supabase.co';
-window.MYSPACE_SUPABASE_ANON_KEY = 'sb_publishable_-2sY4tG_sRADyqPuaA-l2g_bw3W6EsS';
+window.MYSPACE_SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InB4aWd2bXF4Y3FqZ3lucXFlbGl4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk3NDEyODksImV4cCI6MjA5NTMxNzI4OX0.FvRtHu67flpdpm4kFOnXOhUkJy7hNluk0rv74a1e7f4';
 
 window.MYSPACE_APP = {
   name: 'MySpace',
