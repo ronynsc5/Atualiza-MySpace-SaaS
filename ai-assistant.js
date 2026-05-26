@@ -17,7 +17,12 @@
   function saveChat(msgs) { localStorage.setItem(CHAT_KEY, JSON.stringify((msgs || []).slice(-50))); }
 
   function getSnapshot() {
-    try { if (window.MySpace && typeof window.MySpace.snapshot === 'function') return window.MySpace.snapshot(); } catch (_) { }
+    try {
+      if (window.MySpace_getNodes) {
+        return { nodes: window.MySpace_getNodes() };
+      }
+      if (window.MySpace && typeof window.MySpace.snapshot === 'function') return window.MySpace.snapshot();
+    } catch (_) { }
     for (const k of ['myspace-v3', 'myspace-v2']) {
       try { const r = localStorage.getItem(k); if (r) return JSON.parse(r); } catch (_) { }
     }
@@ -26,81 +31,26 @@
 
   function applyActions(actions) {
     if (!Array.isArray(actions)) return;
-
-    // Pega o workspace atual
-    const snap = window.MySpace && typeof window.MySpace.snapshot === 'function'
-      ? window.MySpace.snapshot() : null;
-    if (!snap) return;
-
-    const currentLevel = snap.currentLevel || 'root';
-    const workspace = snap.workspaces && snap.workspaces[currentLevel];
-    if (!workspace) return;
-
-    const nodes = workspace.nodes || [];
-    const connections = workspace.connections || [];
-
     for (const action of actions) {
-      if (action.type === 'create_node') {
-        const id = 'ai_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7);
-        const x = action.x !== undefined ? action.x : (200 + Math.random() * 400);
-        const y = action.y !== undefined ? action.y : (200 + Math.random() * 300);
-        const newNode = {
-          id, type: action.node_type || 'card',
-          x, y, width: 200, height: 120,
-          title: action.title || 'Novo nó',
-          note: action.note || '',
-          bgColor: action.color || '#ffffff',
-          bgOpacity: 1, borderColor: '#e0e0dd', borderWidth: 1.5,
-          textColor: '#1a1a18', textSize: 13, textBold: true,
-          cornerRadius: 18, stylePreset: 'clean', opacity: 1,
-          children: [], projectId: currentLevel,
-          created: new Date().toISOString(), modified: new Date().toISOString()
-        };
-        nodes.push(newNode);
-      } else if (action.type === 'update_node') {
-        const node = nodes.find(n => String(n.id) === String(action.id));
-        if (node) {
-          if (action.title !== undefined) node.title = action.title;
-          if (action.note !== undefined) node.note = action.note;
-          if (action.color !== undefined) node.bgColor = action.color;
-          if (action.x !== undefined) node.x = action.x;
-          if (action.y !== undefined) node.y = action.y;
-          node.modified = new Date().toISOString();
+      try {
+        if (action.type === 'create_node') {
+          const x = action.x !== undefined ? action.x : (200 + Math.random() * 600);
+          const y = action.y !== undefined ? action.y : (150 + Math.random() * 400);
+          window.MySpace_addNode(action.title || 'Novo nó', action.note || '', x, y, action.node_type || 'card');
+        } else if (action.type === 'update_node') {
+          const patch = {};
+          if (action.title !== undefined) patch.title = action.title;
+          if (action.note !== undefined) patch.note = action.note;
+          if (action.color !== undefined) patch.bgColor = action.color;
+          if (action.x !== undefined) patch.x = action.x;
+          if (action.y !== undefined) patch.y = action.y;
+          window.MySpace_updateNode(action.id, patch);
+        } else if (action.type === 'delete_node') {
+          window.MySpace_deleteNode(action.id);
         }
-      } else if (action.type === 'delete_node') {
-        const idx = nodes.findIndex(n => String(n.id) === String(action.id));
-        if (idx >= 0) nodes.splice(idx, 1);
-        for (let i = connections.length - 1; i >= 0; i--) {
-          if (String(connections[i].from) === String(action.id) || String(connections[i].to) === String(action.id)) {
-            connections.splice(i, 1);
-          }
-        }
-      } else if (action.type === 'create_connection') {
-        connections.push({
-          id: 'ac_' + Date.now(), from: action.from, to: action.to,
-          style: action.style || 'curved', label: action.label || '',
-          color: '#888', width: 1.5, arrow: 'end'
-        });
+      } catch(e) {
+        console.warn('[AI] action error:', action.type, e);
       }
-    }
-
-    workspace.nodes = nodes;
-    workspace.connections = connections;
-
-    // Salva via commit + saveNow
-    try {
-      if (window.MySpace && typeof window.MySpace.commit === 'function') {
-        window.MySpace.commit('ai-action');
-      }
-      if (window.MySpace && typeof window.MySpace.saveNow === 'function') {
-        window.MySpace.saveNow().catch(() => {});
-      }
-      if (window.MySpace && typeof window.MySpace.redraw === 'function') {
-        window.MySpace.redraw();
-      }
-      if (typeof draw === 'function') setTimeout(draw, 100);
-    } catch(e) {
-      console.warn('[AI] applyActions error:', e);
     }
   }
 
