@@ -32,7 +32,7 @@
   function applyActions(actions) {
     if (!Array.isArray(actions)) return;
 
-    // Primeira passagem: criar/editar/deletar nós (precisam existir antes de conectar)
+    // Primeira passagem: criar / editar / deletar nós
     for (const action of actions) {
       try {
         if (action.type === 'create_node') {
@@ -57,7 +57,7 @@
       }
     }
 
-    // Segunda passagem: criar conexões (depois que os nós já existem)
+    // Segunda passagem: criar conexões (nós já existem)
     for (const action of actions) {
       try {
         if (action.type === 'create_connection') {
@@ -65,7 +65,13 @@
             console.warn('[AI] create_connection sem from/to:', action);
             continue;
           }
-          window.MySpace_addConnection(action.from, action.to, action.style || 'curved');
+          // Passa style e color — bridge deve aceitar (from, to, style, color)
+          window.MySpace_addConnection(
+            action.from,
+            action.to,
+            action.style || 'curved',
+            action.color || null
+          );
         }
       } catch (e) {
         console.warn('[AI] connection error:', action, e);
@@ -234,14 +240,12 @@
   ];
 
   function injectUI() {
-    // Botão flutuante
     const btn = document.createElement('button');
     btn.id = 'ms-ai-btn';
     btn.innerHTML = '🤖';
     btn.title = 'Assistente IA';
     document.body.appendChild(btn);
 
-    // Painel de chat
     const panel = document.createElement('div');
     panel.id = 'ms-ai-panel';
     panel.innerHTML = `
@@ -277,7 +281,6 @@
     `;
     document.body.appendChild(panel);
 
-    // Modal de configurações
     const settingsModal = document.createElement('div');
     settingsModal.id = 'ms-ai-settings-modal';
     const s = getSettings();
@@ -424,7 +427,6 @@
       chat.push({ role: 'assistant', content: reply });
       saveChat(chat);
 
-      // Aplica ações se a IA retornou
       if (data.actions && Array.isArray(data.actions) && data.actions.length > 0) {
         applyActions(data.actions);
         const count = data.actions.length;
@@ -475,7 +477,6 @@
     settingsClose.addEventListener('click', () => settingsModal.classList.remove('show'));
     settingsCancel.addEventListener('click', () => settingsModal.classList.remove('show'));
 
-    // Selecionar provedor
     let selectedProvider = getSettings().providerId || null;
     providerList.addEventListener('click', (e) => {
       const item = e.target.closest('.ms-ai-provider');
@@ -501,7 +502,6 @@
       settingsModal.classList.remove('show');
     });
 
-    // Sugestões rápidas
     document.getElementById('ms-ai-suggestions').addEventListener('click', (e) => {
       const btn = e.target.closest('.ms-ai-suggestion');
       if (!btn) return;
@@ -510,7 +510,6 @@
       input.value = '';
     });
 
-    // Enviar mensagem
     sendBtn.addEventListener('click', () => {
       const text = input.value.trim();
       if (!text) return;
@@ -537,7 +536,6 @@
 
     updateProviderTag();
 
-    // Drag functionality
     const header = panel.querySelector('.ms-ai-header');
     let dragging = false, ox = 0, oy = 0;
     header.style.cursor = 'grab';
