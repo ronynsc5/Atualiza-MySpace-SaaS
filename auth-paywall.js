@@ -249,7 +249,14 @@
   document.addEventListener('DOMContentLoaded', async () => {
     injectUi(); wire();
     if (!sb) return showLogin();
-    sb.auth.onAuthStateChange(() => refreshAccess());
-    await refreshAccess();
+    sb.auth.onAuthStateChange((event, session) => {
+      if (event === 'INITIAL_SESSION') {
+        if (session) refreshAccess();
+        else showLogin();
+      } else if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+        refreshAccess();
+      } else if (event === 'SIGNED_OUT') {
+        showLogin();
+      }
+    });
   });
-})();
