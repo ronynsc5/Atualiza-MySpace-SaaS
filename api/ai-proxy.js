@@ -11,9 +11,14 @@ export default async function handler(req, res) {
 MAPA ATUAL (nós existentes):
 ${nodesInfo}
 
-Quando o usuário pedir para criar, editar, organizar ou modificar o mapa, SEMPRE retorne um JSON no formato:
+REGRAS IMPORTANTES:
+1. Quando o usuário pedir para criar, editar, organizar ou modificar o mapa, responda SEMPRE com JSON puro no formato abaixo.
+2. Quando for só conversa sem modificação, responda em texto normal, SEM JSON.
+3. NUNCA mostre o JSON para o usuário — ele é processado automaticamente.
+
+Formato JSON para modificações:
 {
-  "reply": "Mensagem para o usuário explicando o que foi feito",
+  "reply": "Mensagem amigável explicando o que foi feito, SEM mencionar JSON",
   "actions": [
     {"type": "create_node", "title": "Título", "note": "Descrição", "x": 300, "y": 200, "node_type": "card"},
     {"type": "update_node", "id": "n1", "title": "Novo título"},
@@ -22,10 +27,8 @@ Quando o usuário pedir para criar, editar, organizar ou modificar o mapa, SEMPR
   ]
 }
 
-Tipos de nós válidos: "card", "note", "folder"
-Para organizar, distribua os nós com x entre 100-1200 e y entre 100-700.
-
-Se o usuário só estiver conversando sem pedir modificações, responda normalmente em texto.
+Tipos de nós: "card", "note", "folder"
+Distribua nós com x entre 100-1200 e y entre 100-700.
 Responda SEMPRE em português do Brasil.`;
 
     const userMsg = prompt || '';
@@ -62,14 +65,17 @@ Responda SEMPRE em português do Brasil.`;
       rawText = data.choices?.[0]?.message?.content || '';
     }
 
-    // Tenta parsear JSON com actions
     let reply = rawText;
     let actions = null;
+
+    // Tenta parsear JSON
     try {
       const clean = rawText.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/```$/g, '').trim();
-      const parsed = JSON.parse(clean);
-      if (parsed.reply) reply = parsed.reply;
-      if (Array.isArray(parsed.actions)) actions = parsed.actions;
+      if (clean.startsWith('{')) {
+        const parsed = JSON.parse(clean);
+        if (parsed.reply) reply = parsed.reply;
+        if (Array.isArray(parsed.actions)) actions = parsed.actions;
+      }
     } catch (_) { }
 
     return res.status(200).json({ text: reply, actions });
