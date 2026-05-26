@@ -7598,8 +7598,20 @@ setTimeout(function(){
 })();
 </script>
 <script>
-/* MySpace AI Bridge - expõe addNode para o assistente de IA */
+/* MySpace AI Bridge v2 - salva no IndexedDB */
 (function(){
+  function aiSave() {
+    try {
+      if (typeof saveHist === 'function') saveHist();
+      if (typeof draw === 'function') draw();
+      if (typeof triggerSave === 'function') triggerSave();
+      // Força save no IndexedDB via repository
+      if (window.MySpace && typeof window.MySpace.saveNow === 'function') {
+        window.MySpace.saveNow().catch(() => {});
+      }
+    } catch(e) {}
+  }
+
   window.MySpace_addNode = function(title, note, x, y, type) {
     try {
       const n = createNode(x || 300, y || 300, type || 'card');
@@ -7607,12 +7619,11 @@ setTimeout(function(){
       n.note = note || '';
       nodes.push(n);
       selectNodeObj(n);
-      saveHist();
-      draw();
-      triggerSave();
+      aiSave();
       return n;
     } catch(e) { console.warn('[AI Bridge] addNode error:', e); return null; }
   };
+
   window.MySpace_deleteNode = function(id) {
     try {
       const idx = nodes.findIndex(n => String(n.id) === String(id));
@@ -7621,19 +7632,33 @@ setTimeout(function(){
         for (let i = connections.length - 1; i >= 0; i--) {
           if (String(connections[i].from) === String(id) || String(connections[i].to) === String(id)) connections.splice(i, 1);
         }
-        saveHist(); draw(); triggerSave();
+        aiSave();
         return true;
       }
       return false;
-    } catch(e) { console.warn('[AI Bridge] deleteNode error:', e); return false; }
+    } catch(e) { return false; }
   };
+
   window.MySpace_updateNode = function(id, patch) {
     try {
       const n = nodes.find(n => String(n.id) === String(id));
-      if (n) { Object.assign(n, patch); saveHist(); draw(); triggerSave(); return true; }
+      if (n) { Object.assign(n, patch); aiSave(); return true; }
       return false;
     } catch(e) { return false; }
   };
+
+  window.MySpace_addConnection = function(from, to, style) {
+    try {
+      connections.push({
+        id: 'ac_' + Date.now(), from, to,
+        style: style || 'curved', width: 2,
+        color: 'default', opacity: 1
+      });
+      aiSave();
+      return true;
+    } catch(e) { return false; }
+  };
+
   window.MySpace_getNodes = function() {
     try { return nodes.map(n => ({ id: n.id, title: n.title, note: n.note, type: n.type, x: n.x, y: n.y })); }
     catch(e) { return []; }
