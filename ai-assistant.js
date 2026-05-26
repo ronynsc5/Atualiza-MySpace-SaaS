@@ -1,6 +1,3 @@
-cat /home/claude/MySpace-SaaS-new/ai-assistant.js
-Saída
-
 /* MySpace v4.0 - IA Assistant
    Chat limpo com IA. Configuração nas settings. A IA pode criar, editar e organizar o mapa. */
 (function () {
