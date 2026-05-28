@@ -1,5 +1,4 @@
-/* MySpace v4.0 - IA Assistant
-   Chat limpo com IA. Configuração nas settings. A IA pode criar, editar e organizar o mapa. */
+/* MySpace v4.1 - IA Assistant com suporte a multi-key e PDF */
 (function () {
   'use strict';
 
@@ -10,7 +9,6 @@
     try { return JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}'); } catch (_) { return {}; }
   }
   function saveSettings(s) { localStorage.setItem(SETTINGS_KEY, JSON.stringify(s || {})); }
-
   function getChat() {
     try { return JSON.parse(localStorage.getItem(CHAT_KEY) || '[]'); } catch (_) { return []; }
   }
@@ -18,67 +16,108 @@
 
   function getSnapshot() {
     try {
-      if (window.MySpace_getNodes) {
-        return { nodes: window.MySpace_getNodes() };
-      }
+      if (window.MySpace_getNodes) return { nodes: window.MySpace_getNodes() };
       if (window.MySpace && typeof window.MySpace.snapshot === 'function') return window.MySpace.snapshot();
-    } catch (_) { }
+    } catch (_) {}
     for (const k of ['myspace-v3', 'myspace-v2']) {
-      try { const r = localStorage.getItem(k); if (r) return JSON.parse(r); } catch (_) { }
+      try { const r = localStorage.getItem(k); if (r) return JSON.parse(r); } catch (_) {}
     }
     return null;
   }
 
+  // ── PROVIDERS DISPONÍVEIS ──────────────────────────────────────
+  const PROVIDERS = [
+    {
+      id: 'groq',
+      name: 'Groq',
+      icon: '⚡',
+      badge: 'GRÁTIS',
+      badgeColor: '#22c55e',
+      description: 'Llama 3.3 70B — Rápido e gratuito',
+      keyLink: 'https://console.groq.com/keys',
+      keyPlaceholder: 'gsk_...',
+      endpoint: 'https://api.groq.com/openai/v1/chat/completions',
+      model: 'llama-3.3-70b-versatile',
+      type: 'openai'
+    },
+    {
+      id: 'gemini',
+      name: 'Google Gemini',
+      icon: '✨',
+      badge: 'GRÁTIS',
+      badgeColor: '#22c55e',
+      description: 'Gemini 2.0 Flash — Muito inteligente',
+      keyLink: 'https://aistudio.google.com/apikey',
+      keyPlaceholder: 'AIza...',
+      endpoint: 'https://generativelanguage.googleapis.com/v1beta',
+      model: 'gemini-2.0-flash',
+      type: 'gemini'
+    },
+    {
+      id: 'openai',
+      name: 'OpenAI',
+      icon: '🤖',
+      badge: 'PAGO',
+      badgeColor: '#f59e0b',
+      description: 'GPT-4o — O mais poderoso',
+      keyLink: 'https://platform.openai.com/api-keys',
+      keyPlaceholder: 'sk-...',
+      endpoint: 'https://api.openai.com/v1/chat/completions',
+      model: 'gpt-4o',
+      type: 'openai'
+    },
+    {
+      id: 'anthropic',
+      name: 'Anthropic',
+      icon: '🧠',
+      badge: 'PAGO',
+      badgeColor: '#f59e0b',
+      description: 'Claude Sonnet — Análise profunda',
+      keyLink: 'https://console.anthropic.com/settings/api-keys',
+      keyPlaceholder: 'sk-ant-...',
+      endpoint: 'https://api.anthropic.com/v1/messages',
+      model: 'claude-sonnet-4-5',
+      type: 'anthropic'
+    }
+  ];
+
+  // ── APPLY ACTIONS ──────────────────────────────────────────────
   function applyActions(actions) {
     if (!Array.isArray(actions)) return;
-
-    // Primeira passagem: criar / editar / deletar nós
     for (const action of actions) {
       try {
         if (action.type === 'create_node') {
           const x = action.x !== undefined ? action.x : (200 + Math.random() * 600);
           const y = action.y !== undefined ? action.y : (150 + Math.random() * 400);
-          window.MySpace_addNode(action.title || 'Novo nó', action.note || '', x, y, action.node_type || 'card');
-
+          window.MySpace_addNode(action.title || 'Novo no', action.note || '', x, y, action.node_type || 'card');
         } else if (action.type === 'update_node') {
           const patch = {};
           if (action.title !== undefined) patch.title = action.title;
-          if (action.note  !== undefined) patch.note  = action.note;
+          if (action.note !== undefined) patch.note = action.note;
           if (action.color !== undefined) patch.bgColor = action.color;
-          if (action.x     !== undefined) patch.x = action.x;
-          if (action.y     !== undefined) patch.y = action.y;
+          if (action.bgColor !== undefined) patch.bgColor = action.bgColor;
+          if (action.borderColor !== undefined) patch.borderColor = action.borderColor;
+          if (action.textColor !== undefined) patch.textColor = action.textColor;
+          if (action.emoji !== undefined) patch.emoji = action.emoji;
+          if (action.x !== undefined) patch.x = action.x;
+          if (action.y !== undefined) patch.y = action.y;
           window.MySpace_updateNode(action.id, patch);
-
         } else if (action.type === 'delete_node') {
           window.MySpace_deleteNode(action.id);
         }
-      } catch (e) {
-        console.warn('[AI] action error:', action.type, e);
-      }
+      } catch (e) { console.warn('[AI] action error:', action.type, e); }
     }
-
-    // Segunda passagem: criar conexões (nós já existem)
     for (const action of actions) {
       try {
         if (action.type === 'create_connection') {
-          if (!action.from || !action.to) {
-            console.warn('[AI] create_connection sem from/to:', action);
-            continue;
-          }
-          // Passa style e color — bridge deve aceitar (from, to, style, color)
-          window.MySpace_addConnection(
-            action.from,
-            action.to,
-            action.style || 'curved',
-            action.color || null
-          );
+          if (!action.from || !action.to) continue;
+          window.MySpace_addConnection(action.from, action.to, action.style || 'curved', action.color || null);
         }
-      } catch (e) {
-        console.warn('[AI] connection error:', action, e);
-      }
+      } catch (e) { console.warn('[AI] connection error:', action, e); }
     }
   }
 
+  // ── STYLES ────────────────────────────────────────────────────
   function injectStyles() {
     const css = document.createElement('style');
     css.textContent = `
@@ -90,8 +129,7 @@
         cursor: pointer; box-shadow: 0 4px 20px var(--shadow2);
         transition: transform 0.15s, box-shadow 0.15s; font-size: 22px;
       }
-      #ms-ai-btn:hover { transform: scale(1.08); box-shadow: 0 8px 28px var(--shadow2); }
-
+      #ms-ai-btn:hover { transform: scale(1.08); }
       #ms-ai-panel {
         position: fixed; right: 18px; bottom: 140px; z-index: 2599;
         width: 420px; height: 620px; border-radius: 18px;
@@ -99,11 +137,9 @@
         box-shadow: 0 12px 48px var(--shadow2);
         display: none; flex-direction: column;
         font-family: 'Inter', system-ui, sans-serif;
-        overflow: hidden; cursor: default;
-        resize: both;
+        overflow: hidden; resize: both;
       }
       #ms-ai-panel.show { display: flex; }
-
       .ms-ai-header {
         display: flex; align-items: center; justify-content: space-between;
         padding: 14px 16px; border-bottom: 1px solid var(--border);
@@ -111,134 +147,131 @@
       }
       .ms-ai-header-left { display: flex; align-items: center; gap: 8px; }
       .ms-ai-header-left span { font-size: 15px; font-weight: 700; color: var(--text); }
-      .ms-ai-header-left small { font-size: 11px; color: var(--text3); background: var(--bg3); padding: 2px 7px; border-radius: 999px; }
+      .ms-ai-status-dot { width: 8px; height: 8px; border-radius: 50%; background: #6b7280; }
+      .ms-ai-status-dot.active { background: #22c55e; }
+      .ms-ai-status-label { font-size: 11px; color: var(--text3); }
       .ms-ai-header-right { display: flex; gap: 6px; }
       .ms-ai-icon-btn { border: none; background: transparent; color: var(--text3); cursor: pointer; padding: 4px; border-radius: 7px; font-size: 16px; transition: background 0.1s; }
       .ms-ai-icon-btn:hover { background: var(--bg3); color: var(--text); }
-
       .ms-ai-messages {
         flex: 1; overflow-y: auto; padding: 14px 14px 8px;
         display: flex; flex-direction: column; gap: 10px;
-        scrollbar-width: thin; scrollbar-color: var(--border) transparent;
+        scrollbar-width: thin;
       }
       .ms-ai-msg-row { display: flex; gap: 8px; }
       .ms-ai-msg-row.user { flex-direction: row-reverse; }
-      .ms-ai-avatar {
-        width: 28px; height: 28px; border-radius: 50%; flex-shrink: 0;
-        display: flex; align-items: center; justify-content: center;
-        font-size: 14px; font-weight: 700;
-      }
+      .ms-ai-avatar { width: 28px; height: 28px; border-radius: 50%; flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 700; }
       .ms-ai-avatar.ai { background: var(--accent); color: var(--bg); }
       .ms-ai-avatar.user { background: var(--bg3); color: var(--text); font-size: 12px; }
-      .ms-ai-bubble {
-        max-width: 82%; padding: 9px 12px; border-radius: 14px;
-        font-size: 13px; line-height: 1.5; color: var(--text);
-      }
+      .ms-ai-bubble { max-width: 82%; padding: 9px 12px; border-radius: 14px; font-size: 13px; line-height: 1.5; color: var(--text); }
       .ms-ai-bubble.ai { background: var(--bg2); border-bottom-left-radius: 4px; }
       .ms-ai-bubble.user { background: var(--accent); color: var(--bg); border-bottom-right-radius: 4px; }
       .ms-ai-bubble.error { background: #fee2e2; color: #dc2626; }
       .ms-ai-bubble.action { background: var(--bg3); border: 1px solid var(--border); border-radius: 10px; font-size: 12px; }
-      .ms-ai-action-tag { display: inline-block; background: var(--accent); color: var(--bg); border-radius: 5px; padding: 1px 6px; font-size: 11px; font-weight: 700; margin-right: 4px; }
-
       .ms-ai-typing { display: flex; gap: 4px; align-items: center; padding: 10px 12px; }
       .ms-ai-typing span { width: 6px; height: 6px; background: var(--text3); border-radius: 50%; animation: ms-bounce 1.2s infinite; }
       .ms-ai-typing span:nth-child(2) { animation-delay: 0.2s; }
       .ms-ai-typing span:nth-child(3) { animation-delay: 0.4s; }
       @keyframes ms-bounce { 0%,60%,100%{transform:translateY(0)}30%{transform:translateY(-6px)} }
-
       .ms-ai-footer { padding: 10px 12px; border-top: 1px solid var(--border); background: var(--bg); }
-      .ms-ai-input-row { display: flex; gap: 8px; align-items: flex-end; }
+      .ms-ai-input-row { display: flex; gap: 6px; align-items: flex-end; }
+      .ms-ai-pdf-btn {
+        flex-shrink: 0; width: 36px; height: 36px; border-radius: 10px; border: 1px solid var(--border);
+        background: var(--bg2); color: var(--text2); cursor: pointer; font-size: 14px; font-weight: 700;
+        transition: all 0.15s; display: flex; align-items: center; justify-content: center;
+      }
+      .ms-ai-pdf-btn:hover { background: var(--bg3); border-color: var(--accent); color: var(--accent); }
       .ms-ai-input {
-        flex: 1; border: 1px solid var(--border); background: var(--bg2);
-        color: var(--text); border-radius: 12px; padding: 9px 12px;
-        font-family: inherit; font-size: 13px; resize: none; outline: none;
-        max-height: 100px; min-height: 38px; line-height: 1.4;
-        transition: border-color 0.15s;
+        flex: 1; border: 1px solid var(--border); background: var(--bg2); color: var(--text);
+        border-radius: 12px; padding: 9px 12px; font-family: inherit; font-size: 13px; resize: none;
+        outline: none; max-height: 100px; min-height: 38px; line-height: 1.4; transition: border-color 0.15s;
       }
       .ms-ai-input:focus { border-color: var(--accent); background: var(--bg); }
       .ms-ai-send {
         width: 36px; height: 36px; border-radius: 10px; border: none;
-        background: var(--accent); color: var(--bg);
-        display: flex; align-items: center; justify-content: center;
-        cursor: pointer; flex-shrink: 0; font-size: 16px;
-        transition: opacity 0.15s;
+        background: var(--accent); color: var(--bg); display: flex; align-items: center;
+        justify-content: center; cursor: pointer; flex-shrink: 0; font-size: 16px; transition: opacity 0.15s;
       }
       .ms-ai-send:disabled { opacity: 0.4; cursor: not-allowed; }
-
       .ms-ai-suggestions { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 8px; }
-      .ms-ai-suggestion {
-        font-size: 11px; padding: 4px 10px; border-radius: 999px;
-        border: 1px solid var(--border); background: var(--bg2);
-        color: var(--text2); cursor: pointer; transition: all 0.1s;
-      }
+      .ms-ai-suggestion { font-size: 11px; padding: 4px 10px; border-radius: 999px; border: 1px solid var(--border); background: var(--bg2); color: var(--text2); cursor: pointer; transition: all 0.1s; }
       .ms-ai-suggestion:hover { background: var(--bg3); color: var(--text); }
-
-      .ms-ai-empty {
-        flex: 1; display: flex; flex-direction: column;
-        align-items: center; justify-content: center;
-        gap: 8px; color: var(--text3); padding: 20px;
-        text-align: center;
-      }
+      .ms-ai-empty { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; color: var(--text3); padding: 20px; text-align: center; }
       .ms-ai-empty-icon { font-size: 36px; }
       .ms-ai-empty h3 { font-size: 14px; font-weight: 700; color: var(--text2); margin: 0; }
       .ms-ai-empty p { font-size: 12px; margin: 0; line-height: 1.5; }
 
-      /* Settings modal */
+      /* === SETTINGS MODAL === */
       #ms-ai-settings-modal {
         position: fixed; inset: 0; z-index: 5300;
-        background: rgba(0,0,0,0.4); display: none;
+        background: rgba(0,0,0,0.5); display: none;
         align-items: center; justify-content: center; padding: 20px;
       }
       #ms-ai-settings-modal.show { display: flex; }
       .ms-ai-settings-card {
-        width: min(440px, 100%); background: var(--bg);
+        width: min(520px, 100%); background: var(--bg);
         border: 1px solid var(--border); border-radius: 18px;
         box-shadow: 0 20px 60px var(--shadow2);
         font-family: 'Inter', system-ui, sans-serif;
-        overflow: hidden;
+        overflow: hidden; max-height: 90vh; display: flex; flex-direction: column;
       }
       .ms-ai-settings-head {
         display: flex; align-items: center; justify-content: space-between;
-        padding: 16px 20px; border-bottom: 1px solid var(--border);
-        background: var(--bg2);
+        padding: 18px 20px; border-bottom: 1px solid var(--border);
+        background: var(--bg2); flex-shrink: 0;
       }
       .ms-ai-settings-head strong { font-size: 16px; font-weight: 700; color: var(--text); }
-      .ms-ai-settings-body { padding: 20px; display: flex; flex-direction: column; gap: 14px; }
-      .ms-ai-settings-field label {
-        display: block; font-size: 11px; font-weight: 700;
-        color: var(--text3); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 6px;
-      }
-      .ms-ai-settings-field input, .ms-ai-settings-field select {
-        width: 100%; border: 1px solid var(--border); background: var(--bg2);
-        color: var(--text); border-radius: 10px; padding: 10px 12px;
-        font-family: inherit; font-size: 13px; outline: none; box-sizing: border-box;
-      }
-      .ms-ai-settings-field input:focus { border-color: var(--accent); }
-      .ms-ai-settings-hint { font-size: 11px; color: var(--text3); margin-top: 4px; }
-      .ms-ai-settings-hint a { color: var(--accent); text-decoration: none; }
-      .ms-ai-settings-hint a:hover { text-decoration: underline; }
-      .ms-ai-settings-footer { padding: 14px 20px; border-top: 1px solid var(--border); display: flex; gap: 8px; justify-content: flex-end; }
-      .ms-ai-btn-primary { border: none; background: var(--accent); color: var(--bg); border-radius: 10px; padding: 10px 18px; font-weight: 700; font-size: 13px; cursor: pointer; }
-      .ms-ai-btn-secondary { border: 1px solid var(--border); background: transparent; color: var(--text); border-radius: 10px; padding: 10px 18px; font-weight: 600; font-size: 13px; cursor: pointer; }
+      .ms-ai-settings-body { padding: 16px 20px; display: flex; flex-direction: column; gap: 12px; overflow-y: auto; }
+      .ms-ai-settings-footer { padding: 14px 20px; border-top: 1px solid var(--border); display: flex; gap: 8px; justify-content: flex-end; flex-shrink: 0; }
 
-      .ms-ai-provider-list { display: flex; flex-direction: column; gap: 6px; }
-      .ms-ai-provider { display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; border: 1px solid var(--border); border-radius: 10px; background: var(--bg2); cursor: pointer; transition: background 0.1s; }
-      .ms-ai-provider:hover { background: var(--bg3); }
-      .ms-ai-provider.active { border-color: var(--accent); }
-      .ms-ai-provider-name { font-size: 13px; font-weight: 600; color: var(--text); }
-      .ms-ai-provider-link { font-size: 11px; color: var(--text3); }
+      /* Provider cards */
+      .ms-provider-card {
+        border: 1px solid var(--border); border-radius: 14px;
+        background: var(--bg2); overflow: hidden; transition: border-color 0.15s;
+      }
+      .ms-provider-card.has-key { border-color: #22c55e; }
+      .ms-provider-header {
+        display: flex; align-items: center; gap: 10px;
+        padding: 12px 14px; cursor: pointer; user-select: none;
+      }
+      .ms-provider-icon { font-size: 22px; flex-shrink: 0; }
+      .ms-provider-info { flex: 1; min-width: 0; }
+      .ms-provider-name { font-size: 14px; font-weight: 700; color: var(--text); display: flex; align-items: center; gap: 6px; }
+      .ms-provider-badge { font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 4px; color: #fff; }
+      .ms-provider-desc { font-size: 11px; color: var(--text3); margin-top: 2px; }
+      .ms-provider-status { font-size: 12px; display: flex; align-items: center; gap: 4px; }
+      .ms-provider-status.ok { color: #22c55e; }
+      .ms-provider-status.empty { color: var(--text3); }
+      .ms-provider-body { padding: 0 14px 14px; display: none; }
+      .ms-provider-body.open { display: block; }
+      .ms-provider-key-row { display: flex; gap: 6px; align-items: center; margin-top: 8px; }
+      .ms-provider-key-input {
+        flex: 1; border: 1px solid var(--border); background: var(--bg);
+        color: var(--text); border-radius: 8px; padding: 8px 10px;
+        font-family: 'Inter', monospace; font-size: 12px; outline: none;
+      }
+      .ms-provider-key-input:focus { border-color: var(--accent); }
+      .ms-provider-test-btn {
+        border: 1px solid var(--border); background: var(--bg3); color: var(--text);
+        border-radius: 8px; padding: 8px 12px; font-size: 12px; font-weight: 600;
+        cursor: pointer; white-space: nowrap; font-family: inherit; transition: all 0.15s;
+      }
+      .ms-provider-test-btn:hover { background: var(--accent); color: var(--bg); border-color: var(--accent); }
+      .ms-provider-test-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+      .ms-provider-link { font-size: 11px; color: var(--accent); text-decoration: none; margin-top: 6px; display: inline-block; }
+      .ms-provider-link:hover { text-decoration: underline; }
+      .ms-provider-test-result { font-size: 11px; margin-top: 6px; padding: 6px 10px; border-radius: 6px; }
+      .ms-provider-test-result.ok { background: #dcfce7; color: #166534; }
+      .ms-provider-test-result.error { background: #fee2e2; color: #991b1b; }
+
+      .ms-ai-btn-primary { border: none; background: var(--accent); color: var(--bg); border-radius: 10px; padding: 10px 18px; font-weight: 700; font-size: 13px; cursor: pointer; font-family: inherit; }
+      .ms-ai-btn-secondary { border: 1px solid var(--border); background: transparent; color: var(--text); border-radius: 10px; padding: 10px 18px; font-weight: 600; font-size: 13px; cursor: pointer; font-family: inherit; }
+      .ms-settings-note { font-size: 11px; color: var(--text3); background: var(--bg3); border-radius: 8px; padding: 10px 12px; line-height: 1.5; }
     `;
     document.head.appendChild(css);
   }
 
-  const PROVIDERS = [
-    { id: 'groq', name: 'Groq (Grátis)', endpoint: 'https://api.groq.com/openai/v1/chat/completions', model: 'llama-3.3-70b-versatile', link: 'https://console.groq.com/keys' },
-    { id: 'openai', name: 'OpenAI (ChatGPT)', endpoint: 'https://api.openai.com/v1/chat/completions', model: 'gpt-4o-mini', link: 'https://platform.openai.com/api-keys' },
-    { id: 'anthropic', name: 'Anthropic (Claude)', endpoint: 'https://api.anthropic.com/v1/messages', model: 'claude-3-haiku-20240307', link: 'https://console.anthropic.com/settings/api-keys' },
-    { id: 'gemini', name: 'Google Gemini', endpoint: 'https://generativelanguage.googleapis.com/v1beta', model: 'gemini-2.0-flash', link: 'https://aistudio.google.com/apikey' },
-    { id: 'custom', name: 'Outro (OpenAI compatível)', endpoint: '', model: '', link: '' },
-  ];
-
+  // ── UI ────────────────────────────────────────────────────────
   function injectUI() {
     const btn = document.createElement('button');
     btn.id = 'ms-ai-btn';
@@ -252,11 +285,12 @@
       <div class="ms-ai-header">
         <div class="ms-ai-header-left">
           <span>🤖 IA</span>
-          <small id="ms-ai-provider-tag">não configurada</small>
+          <div class="ms-ai-status-dot" id="ms-ai-status-dot"></div>
+          <span class="ms-ai-status-label" id="ms-ai-status-label">sem configuracao</span>
         </div>
         <div class="ms-ai-header-right">
           <button class="ms-ai-icon-btn" id="ms-ai-clear-btn" title="Limpar conversa">🗑</button>
-          <button class="ms-ai-icon-btn" id="ms-ai-settings-btn" title="Configurar IA">⚙️</button>
+          <button class="ms-ai-icon-btn" id="ms-ai-settings-btn" title="Configurar IAs">⚙️</button>
           <button class="ms-ai-icon-btn" id="ms-ai-close-btn" title="Fechar">✕</button>
         </div>
       </div>
@@ -264,17 +298,17 @@
         <div class="ms-ai-empty" id="ms-ai-empty">
           <div class="ms-ai-empty-icon">🤖</div>
           <h3>Assistente IA</h3>
-          <p>Descreva uma ideia e eu crio o mapa.<br>Cole uma conversa e eu organizo.<br>Peça edições e eu aplico.</p>
+          <p>Descreva uma ideia e eu crio o mapa.<br>Envie um PDF e eu resumo em mapa mental.<br>Peça edições e eu aplico.</p>
         </div>
       </div>
       <div class="ms-ai-footer">
         <div class="ms-ai-suggestions" id="ms-ai-suggestions">
           <button class="ms-ai-suggestion">Organize meu mapa</button>
-          <button class="ms-ai-suggestion">Crie um mapa sobre marketing</button>
+          <button class="ms-ai-suggestion">Mapa sobre marketing</button>
           <button class="ms-ai-suggestion">Analise meu projeto</button>
         </div>
         <div class="ms-ai-input-row">
-          <button class="ms-ai-icon-btn" id="ms-ai-pdf-btn" title="Enviar PDF" style="flex-shrink:0;width:36px;height:36px;border-radius:10px;font-size:18px;">PDF</button>
+          <button class="ms-ai-pdf-btn" id="ms-ai-pdf-btn" title="Enviar PDF">PDF</button>
           <input type="file" id="ms-ai-pdf-input" accept=".pdf" style="display:none">
           <textarea class="ms-ai-input" id="ms-ai-input" placeholder="Digite ou envie um PDF..." rows="1"></textarea>
           <button class="ms-ai-send" id="ms-ai-send" title="Enviar">➤</button>
@@ -283,41 +317,17 @@
     `;
     document.body.appendChild(panel);
 
+    // Settings modal
+    const s = getSettings();
     const settingsModal = document.createElement('div');
     settingsModal.id = 'ms-ai-settings-modal';
-    const s = getSettings();
     settingsModal.innerHTML = `
       <div class="ms-ai-settings-card">
         <div class="ms-ai-settings-head">
-          <strong>⚙️ Configurar IA</strong>
+          <strong>⚙️ Configurar IAs</strong>
           <button class="ms-ai-icon-btn" id="ms-ai-settings-close">✕</button>
         </div>
-        <div class="ms-ai-settings-body">
-          <div class="ms-ai-settings-field">
-            <label>Provedor de IA</label>
-            <div class="ms-ai-provider-list" id="ms-ai-provider-list">
-              ${PROVIDERS.map(p => `
-                <div class="ms-ai-provider ${s.providerId === p.id ? 'active' : ''}" data-id="${p.id}" data-endpoint="${p.endpoint}" data-model="${p.model}">
-                  <span class="ms-ai-provider-name">${p.name}</span>
-                  ${p.link ? `<a class="ms-ai-provider-link" href="${p.link}" target="_blank" onclick="event.stopPropagation()">Obter chave →</a>` : ''}
-                </div>
-              `).join('')}
-            </div>
-          </div>
-          <div class="ms-ai-settings-field" id="ms-ai-custom-endpoint-field" style="${s.providerId === 'custom' ? '' : 'display:none'}">
-            <label>Endpoint</label>
-            <input id="ms-ai-endpoint" placeholder="https://api.openai.com/v1/chat/completions" value="${s.endpoint || ''}">
-          </div>
-          <div class="ms-ai-settings-field" id="ms-ai-custom-model-field" style="${s.providerId === 'custom' ? '' : 'display:none'}">
-            <label>Modelo</label>
-            <input id="ms-ai-model" placeholder="gpt-4o-mini" value="${s.model || ''}">
-          </div>
-          <div class="ms-ai-settings-field">
-            <label>API Key</label>
-            <input id="ms-ai-key" type="password" placeholder="Cole sua chave aqui" value="${s.apiKey || ''}" autocomplete="new-password">
-            <div class="ms-ai-settings-hint">Sua chave fica salva só no seu navegador. Nunca é enviada para nossos servidores.</div>
-          </div>
-        </div>
+        <div class="ms-ai-settings-body" id="ms-ai-providers-list"></div>
         <div class="ms-ai-settings-footer">
           <button class="ms-ai-btn-secondary" id="ms-ai-settings-cancel">Cancelar</button>
           <button class="ms-ai-btn-primary" id="ms-ai-settings-save">Salvar</button>
@@ -327,31 +337,95 @@
     document.body.appendChild(settingsModal);
   }
 
-  function updateProviderTag() {
+  function buildProviderCards() {
     const s = getSettings();
-    const tag = document.getElementById('ms-ai-provider-tag');
-    if (!tag) return;
-    const provider = PROVIDERS.find(p => p.id === s.providerId);
-    tag.textContent = s.apiKey ? (provider ? provider.name.split('(')[0].trim() : 'Configurada') : 'não configurada';
+    const keys = s.keys || {};
+    const container = document.getElementById('ms-ai-providers-list');
+    if (!container) return;
+
+    const note = `<div class="ms-settings-note">
+      Adicione as keys dos providers que quiser usar. A IA tenta na ordem: ⚡ Groq → ✨ Gemini → 🤖 OpenAI → 🧠 Anthropic.<br>
+      Quando um atinge o limite, passa pro proximo automaticamente.<br>
+      <strong>Groq e Gemini sao gratuitos — recomendados para comecar.</strong>
+    </div>`;
+
+    const cards = PROVIDERS.map(p => {
+      const hasKey = !!(keys[p.id]);
+      return `
+        <div class="ms-provider-card ${hasKey ? 'has-key' : ''}" id="ms-card-${p.id}">
+          <div class="ms-provider-header" onclick="document.getElementById('ms-body-${p.id}').classList.toggle('open')">
+            <div class="ms-provider-icon">${p.icon}</div>
+            <div class="ms-provider-info">
+              <div class="ms-provider-name">
+                ${p.name}
+                <span class="ms-provider-badge" style="background:${p.badgeColor}">${p.badge}</span>
+              </div>
+              <div class="ms-provider-desc">${p.description}</div>
+            </div>
+            <div class="ms-provider-status ${hasKey ? 'ok' : 'empty'}">
+              ${hasKey ? '✅ Configurado' : '○ Sem key'}
+            </div>
+          </div>
+          <div class="ms-provider-body" id="ms-body-${p.id}">
+            <div class="ms-provider-key-row">
+              <input class="ms-provider-key-input" type="password"
+                id="ms-key-${p.id}"
+                placeholder="${p.keyPlaceholder}"
+                value="${keys[p.id] || ''}"
+                autocomplete="new-password">
+              <button class="ms-provider-test-btn" id="ms-test-${p.id}" onclick="window.msTestKey('${p.id}')">Testar</button>
+            </div>
+            <a class="ms-provider-link" href="${p.keyLink}" target="_blank">Obter key gratuita →</a>
+            <div id="ms-result-${p.id}" style="display:none" class="ms-provider-test-result"></div>
+          </div>
+        </div>
+      `;
+    }).join('');
+
+    container.innerHTML = note + cards;
+
+    // Abre automaticamente o primeiro sem key
+    for (const p of PROVIDERS) {
+      const s2 = getSettings();
+      if (!(s2.keys || {})[p.id]) {
+        const body = document.getElementById(`ms-body-${p.id}`);
+        if (body) { body.classList.add('open'); break; }
+      }
+    }
   }
 
+  // ── STATUS ────────────────────────────────────────────────────
+  function updateStatus() {
+    const s = getSettings();
+    const keys = s.keys || {};
+    const hasAny = PROVIDERS.some(p => keys[p.id]);
+    const dot = document.getElementById('ms-ai-status-dot');
+    const label = document.getElementById('ms-ai-status-label');
+    if (!dot || !label) return;
+    if (hasAny) {
+      const active = PROVIDERS.filter(p => keys[p.id]).map(p => p.name).join(', ');
+      dot.classList.add('active');
+      label.textContent = active;
+    } else {
+      dot.classList.remove('active');
+      label.textContent = 'sem configuracao';
+    }
+  }
+
+  // ── SEND MESSAGE ──────────────────────────────────────────────
   function addMessage(role, content, type) {
     const msgs = document.getElementById('ms-ai-messages');
     const empty = document.getElementById('ms-ai-empty');
     if (empty) empty.style.display = 'none';
     document.getElementById('ms-ai-suggestions').style.display = 'none';
-
     const row = document.createElement('div');
     row.className = `ms-ai-msg-row ${role}`;
-
     const avatar = document.createElement('div');
     avatar.className = `ms-ai-avatar ${role}`;
     avatar.textContent = role === 'ai' ? '🤖' : '👤';
-
     const bubble = document.createElement('div');
     bubble.className = `ms-ai-bubble ${type || role}`;
     bubble.textContent = content;
-
     row.appendChild(avatar);
     row.appendChild(bubble);
     msgs.appendChild(row);
@@ -363,14 +437,10 @@
     const msgs = document.getElementById('ms-ai-messages');
     const empty = document.getElementById('ms-ai-empty');
     if (empty) empty.style.display = 'none';
-
     const row = document.createElement('div');
     row.className = 'ms-ai-msg-row ai';
     row.id = 'ms-ai-typing';
-    row.innerHTML = `
-      <div class="ms-ai-avatar ai">🤖</div>
-      <div class="ms-ai-bubble ai"><div class="ms-ai-typing"><span></span><span></span><span></span></div></div>
-    `;
+    row.innerHTML = `<div class="ms-ai-avatar ai">🤖</div><div class="ms-ai-bubble ai"><div class="ms-ai-typing"><span></span><span></span><span></span></div></div>`;
     msgs.appendChild(row);
     msgs.scrollTop = msgs.scrollHeight;
   }
@@ -383,8 +453,10 @@
   async function sendMessage(text) {
     if (!text.trim()) return;
     const s = getSettings();
-    if (!s.apiKey) {
-      addMessage('ai', '⚙️ Configure sua API key clicando no botão de configurações.', 'error');
+    const keys = s.keys || {};
+    const hasAny = PROVIDERS.some(p => keys[p.id]);
+    if (!hasAny) {
+      addMessage('ai', 'Configure pelo menos uma API key clicando em ⚙️.', 'error');
       return;
     }
 
@@ -405,10 +477,7 @@
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          endpoint: s.endpoint,
-          model: s.model,
-          apiKey: s.apiKey,
-          providerId: s.providerId,
+          keys,           // envia todas as keys configuradas
           task: 'chat',
           prompt: text,
           payload: snapshot,
@@ -426,18 +495,21 @@
 
       const reply = data.text || '';
       addMessage('ai', reply);
+      if (data.provider) {
+        const label = document.getElementById('ms-ai-status-label');
+        if (label) label.textContent = data.provider;
+      }
       chat.push({ role: 'assistant', content: reply });
       saveChat(chat);
 
       if (data.actions && Array.isArray(data.actions) && data.actions.length > 0) {
         applyActions(data.actions);
         const count = data.actions.length;
-        addMessage('ai', `✅ Apliquei ${count} ${count === 1 ? 'alteração' : 'alterações'} no seu mapa.`, 'action');
+        addMessage('ai', `Apliquei ${count} ${count === 1 ? 'alteracao' : 'alteracoes'} no seu mapa.`, 'action');
       }
-
     } catch (err) {
       removeTyping();
-      addMessage('ai', '❌ Erro de conexão: ' + err.message, 'error');
+      addMessage('ai', '❌ Erro de conexao: ' + err.message, 'error');
     } finally {
       input.disabled = false;
       sendBtn.disabled = false;
@@ -445,6 +517,7 @@
     }
   }
 
+  // ── WIRE ──────────────────────────────────────────────────────
   function wire() {
     const btn = document.getElementById('ms-ai-btn');
     const panel = document.getElementById('ms-ai-panel');
@@ -457,7 +530,6 @@
     const settingsSave = document.getElementById('ms-ai-settings-save');
     const input = document.getElementById('ms-ai-input');
     const sendBtn = document.getElementById('ms-ai-send');
-    const providerList = document.getElementById('ms-ai-provider-list');
 
     btn.addEventListener('click', () => panel.classList.toggle('show'));
     closeBtn.addEventListener('click', () => panel.classList.remove('show'));
@@ -465,53 +537,103 @@
     clearBtn.addEventListener('click', () => {
       saveChat([]);
       const msgs = document.getElementById('ms-ai-messages');
-      msgs.innerHTML = `
-        <div class="ms-ai-empty" id="ms-ai-empty">
-          <div class="ms-ai-empty-icon">🤖</div>
-          <h3>Assistente IA</h3>
-          <p>Descreva uma ideia e eu crio o mapa.<br>Cole uma conversa e eu organizo.<br>Peça edições e eu aplico.</p>
-        </div>
-      `;
+      msgs.innerHTML = `<div class="ms-ai-empty" id="ms-ai-empty">
+        <div class="ms-ai-empty-icon">🤖</div>
+        <h3>Assistente IA</h3>
+        <p>Descreva uma ideia e eu crio o mapa.<br>Envie um PDF e eu resumo.<br>Peça edições e eu aplico.</p>
+      </div>`;
       document.getElementById('ms-ai-suggestions').style.display = 'flex';
     });
 
-    settingsBtn.addEventListener('click', () => settingsModal.classList.add('show'));
-    settingsClose.addEventListener('click', () => settingsModal.classList.remove('show'));
-    settingsCancel.addEventListener('click', () => settingsModal.classList.remove('show'));
-
-    let selectedProvider = getSettings().providerId || null;
-    providerList.addEventListener('click', (e) => {
-      const item = e.target.closest('.ms-ai-provider');
-      if (!item) return;
-      providerList.querySelectorAll('.ms-ai-provider').forEach(el => el.classList.remove('active'));
-      item.classList.add('active');
-      selectedProvider = item.dataset.id;
-      const isCustom = selectedProvider === 'custom';
-      document.getElementById('ms-ai-custom-endpoint-field').style.display = isCustom ? '' : 'none';
-      document.getElementById('ms-ai-custom-model-field').style.display = isCustom ? '' : 'none';
+    settingsBtn.addEventListener('click', () => {
+      buildProviderCards();
+      settingsModal.classList.add('show');
     });
+
+    const closeModal = () => settingsModal.classList.remove('show');
+    settingsClose.addEventListener('click', closeModal);
+    settingsCancel.addEventListener('click', closeModal);
 
     settingsSave.addEventListener('click', () => {
-      const provider = PROVIDERS.find(p => p.id === selectedProvider);
-      const s = {
-        providerId: selectedProvider,
-        endpoint: selectedProvider === 'custom' ? document.getElementById('ms-ai-endpoint').value.trim() : (provider?.endpoint || ''),
-        model: selectedProvider === 'custom' ? document.getElementById('ms-ai-model').value.trim() : (provider?.model || ''),
-        apiKey: document.getElementById('ms-ai-key').value.trim()
-      };
-      saveSettings(s);
-      updateProviderTag();
-      settingsModal.classList.remove('show');
+      const keys = {};
+      for (const p of PROVIDERS) {
+        const input = document.getElementById(`ms-key-${p.id}`);
+        const val = input ? input.value.trim() : '';
+        if (val) keys[p.id] = val;
+      }
+      saveSettings({ keys });
+      updateStatus();
+      closeModal();
     });
 
+    // Test key global function
+    window.msTestKey = async function(providerId) {
+      const p = PROVIDERS.find(x => x.id === providerId);
+      if (!p) return;
+      const keyInput = document.getElementById(`ms-key-${p.id}`);
+      const testBtn = document.getElementById(`ms-test-${p.id}`);
+      const resultEl = document.getElementById(`ms-result-${p.id}`);
+      const key = keyInput ? keyInput.value.trim() : '';
+      if (!key) { alert('Cole a API key antes de testar.'); return; }
+
+      testBtn.disabled = true;
+      testBtn.textContent = 'Testando...';
+      resultEl.style.display = 'none';
+
+      try {
+        let ok = false;
+        let errMsg = '';
+        if (p.type === 'gemini') {
+          const url = `https://generativelanguage.googleapis.com/v1beta/models/${p.model}:generateContent?key=${key}`;
+          const r = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ contents: [{ role: 'user', parts: [{ text: 'Responda apenas: OK' }] }], generationConfig: { maxOutputTokens: 5 } })
+          });
+          const d = await r.json().catch(() => ({}));
+          ok = r.ok && !!d.candidates;
+          errMsg = d.error?.message || 'Erro desconhecido';
+        } else {
+          const r = await fetch(p.endpoint, {
+            method: 'POST',
+            headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ model: p.model, messages: [{ role: 'user', content: 'Responda apenas: OK' }], max_tokens: 5 })
+          });
+          const d = await r.json().catch(() => ({}));
+          ok = r.ok && !!d.choices;
+          errMsg = d.error?.message || 'Erro desconhecido';
+        }
+
+        resultEl.style.display = 'block';
+        if (ok) {
+          resultEl.className = 'ms-provider-test-result ok';
+          resultEl.textContent = '✅ Conexao bem-sucedida! Key valida.';
+          const card = document.getElementById(`ms-card-${p.id}`);
+          if (card) card.classList.add('has-key');
+          const status = card?.querySelector('.ms-provider-status');
+          if (status) { status.className = 'ms-provider-status ok'; status.textContent = '✅ Configurado'; }
+        } else {
+          resultEl.className = 'ms-provider-test-result error';
+          resultEl.textContent = '❌ ' + errMsg;
+        }
+      } catch (err) {
+        resultEl.style.display = 'block';
+        resultEl.className = 'ms-provider-test-result error';
+        resultEl.textContent = '❌ ' + err.message;
+      } finally {
+        testBtn.disabled = false;
+        testBtn.textContent = 'Testar';
+      }
+    };
+
+    // Suggestions
     document.getElementById('ms-ai-suggestions').addEventListener('click', (e) => {
-      const btn = e.target.closest('.ms-ai-suggestion');
-      if (!btn) return;
-      input.value = btn.textContent;
-      sendMessage(btn.textContent);
-      input.value = '';
+      const b = e.target.closest('.ms-ai-suggestion');
+      if (!b) return;
+      sendMessage(b.textContent);
     });
 
+    // Send
     sendBtn.addEventListener('click', () => {
       const text = input.value.trim();
       if (!text) return;
@@ -536,8 +658,7 @@
       input.style.height = Math.min(input.scrollHeight, 100) + 'px';
     });
 
-
-    // PDF Upload
+    // PDF
     const pdfBtn = document.getElementById('ms-ai-pdf-btn');
     const pdfInput = document.getElementById('ms-ai-pdf-input');
     if (pdfBtn && pdfInput) {
@@ -569,13 +690,13 @@
             fullText += tc.items.map(function(item){ return item.str; }).join(' ') + ' ';
           }
           if (!fullText.trim()) {
-            addMessage('ai', 'PDF sem texto legivel. Pode ser um PDF escaneado (so imagem).', 'error');
+            addMessage('ai', 'PDF sem texto. Pode ser escaneado (so imagem).', 'error');
             return;
           }
           const truncated = fullText.length > 8000;
           const text = fullText.slice(0, 8000);
-          const prompt = 'Leia este conteudo extraido do PDF "' + file.name + '" e crie um mapa mental completo resumindo os principais conceitos e topicos. Use o modelo de mapa mais adequado para o conteudo.\n\n=== CONTEUDO DO PDF ===\n' + text + (truncated ? '\n\n[Texto truncado - primeiras paginas]' : '');
-          addMessage('user', '[PDF] ' + file.name + (truncated ? ' (parcial)' : ''));
+          const prompt = 'Leia este conteudo do PDF "' + file.name + '" e crie um mapa mental completo resumindo os principais conceitos e topicos.\n\n=== CONTEUDO ===\n' + text + (truncated ? '\n[truncado]' : '');
+          addMessage('user', '[PDF] ' + file.name);
           await sendMessage(prompt);
         } catch (err) {
           addMessage('ai', 'Erro ao ler PDF: ' + err.message, 'error');
@@ -583,8 +704,7 @@
       });
     }
 
-    updateProviderTag();
-
+    // Drag
     const header = panel.querySelector('.ms-ai-header');
     let dragging = false, ox = 0, oy = 0;
     header.style.cursor = 'grab';
@@ -592,8 +712,7 @@
       if (e.target.closest('button')) return;
       dragging = true;
       const rect = panel.getBoundingClientRect();
-      ox = e.clientX - rect.left;
-      oy = e.clientY - rect.top;
+      ox = e.clientX - rect.left; oy = e.clientY - rect.top;
       header.style.cursor = 'grabbing';
       e.preventDefault();
     });
@@ -601,12 +720,12 @@
       if (!dragging) return;
       const x = Math.max(0, Math.min(window.innerWidth - panel.offsetWidth, e.clientX - ox));
       const y = Math.max(0, Math.min(window.innerHeight - panel.offsetHeight, e.clientY - oy));
-      panel.style.left = x + 'px';
-      panel.style.top = y + 'px';
-      panel.style.right = 'auto';
-      panel.style.bottom = 'auto';
+      panel.style.left = x + 'px'; panel.style.top = y + 'px';
+      panel.style.right = 'auto'; panel.style.bottom = 'auto';
     });
     document.addEventListener('mouseup', () => { dragging = false; header.style.cursor = 'grab'; });
+
+    updateStatus();
   }
 
   document.addEventListener('DOMContentLoaded', () => {
