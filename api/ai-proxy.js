@@ -339,17 +339,45 @@ Responda em portugues do Brasil.`
     let actions = null;
 
     try {
+      // 1. Remove markdown code fences
       let clean = rawText.replace(/^```(?:json)?\s*/im, '').replace(/```\s*$/m, '').trim();
+
+      // 2. Se tem texto antes do JSON, encontra o primeiro { válido
       if (!clean.startsWith('{')) {
-        const s = rawText.indexOf('{'), e = rawText.lastIndexOf('}');
-        if (s !== -1 && e > s) clean = rawText.slice(s, e + 1).trim();
+        // Tenta encontrar JSON em qualquer lugar do texto
+        const matches = clean.match(/\{[\s\S]*\}/);
+        if (matches) clean = matches[0];
       }
+
+      // 3. Tenta parsear
       if (clean.startsWith('{')) {
         const parsed = JSON.parse(clean);
         if (parsed.reply) reply = String(parsed.reply);
         if (Array.isArray(parsed.actions) && parsed.actions.length > 0) actions = parsed.actions;
       }
-    } catch (_) {}
+    } catch (_) {
+      // 4. Fallback: tenta extrair JSON mesmo com erros de formatação
+      try {
+        const s = rawText.indexOf('{"reply"');
+        if (s !== -1) {
+          const e = rawText.lastIndexOf('}') + 1;
+          const parsed = JSON.parse(rawText.slice(s, e));
+          if (parsed.reply) reply = String(parsed.reply);
+          if (Array.isArray(parsed.actions) && parsed.actions.length > 0) actions = parsed.actions;
+        }
+      } catch (_2) {}
+    }
+
+    // 5. Garante que o reply nunca mostre JSON cru pro usuário
+    if (reply.trimStart().startsWith('{') || reply.includes('"actions":[')) {
+      try {
+        const parsed = JSON.parse(reply);
+        if (parsed.reply) reply = String(parsed.reply);
+        if (!actions && Array.isArray(parsed.actions)) actions = parsed.actions;
+      } catch(_) {
+        reply = 'Mapa atualizado!';
+      }
+    }
 
     return res.status(200).json({ text: reply, actions, provider: usedProvider });
 
