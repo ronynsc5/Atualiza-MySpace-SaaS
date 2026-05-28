@@ -328,18 +328,21 @@
       .ms-ai-empty p{font-size:12px;margin:0;line-height:1.5;}
 
       /* SETTINGS MODAL */
-      #ms-ai-settings-modal{position:fixed;inset:0;z-index:5300;background:rgba(0,0,0,0.5);display:none;align-items:center;justify-content:center;padding:20px;overflow:hidden;}
+      #ms-ai-settings-modal{position:fixed;inset:0;z-index:5300;background:rgba(0,0,0,0.5);display:none;align-items:center;justify-content:center;padding:20px;}
       #ms-ai-settings-modal.show{display:flex;}
-      .ms-ai-settings-card{width:min(560px,100%);background:var(--bg);border:1px solid var(--border);border-radius:18px;box-shadow:0 20px 60px var(--shadow2);font-family:'Inter',system-ui,sans-serif;overflow:hidden;max-height:88vh;display:flex;flex-direction:column;}
+      .ms-ai-settings-card{width:min(560px,100%);background:var(--bg);border:1px solid var(--border);border-radius:18px;box-shadow:0 20px 60px var(--shadow2);font-family:'Inter',system-ui,sans-serif;overflow:hidden;max-height:90vh;height:90vh;display:flex;flex-direction:column;}
       .ms-ai-settings-head{display:flex;align-items:center;justify-content:space-between;padding:18px 20px;border-bottom:1px solid var(--border);background:var(--bg2);flex-shrink:0;}
       .ms-ai-settings-head strong{font-size:16px;font-weight:700;color:var(--text);}
-      .ms-ai-settings-body{padding:16px 20px;display:flex;flex-direction:column;gap:10px;overflow-y:scroll;overflow-x:hidden;flex:1;min-height:0;max-height:100%;}
+      .ms-ai-settings-body{padding:16px 20px;display:flex;flex-direction:column;gap:10px;overflow-y:scroll;overflow-x:hidden;flex:1;min-height:0;scrollbar-width:thin;scrollbar-color:var(--border2) transparent;}
       .ms-ai-settings-footer{padding:14px 20px;border-top:1px solid var(--border);display:flex;gap:8px;justify-content:flex-end;flex-shrink:0;}
       .ms-settings-note{font-size:11px;color:var(--text3);background:var(--bg3);border-radius:8px;padding:10px 12px;line-height:1.5;}
+      .ms-ai-settings-body::-webkit-scrollbar{width:6px;}
+      .ms-ai-settings-body::-webkit-scrollbar-track{background:transparent;}
+      .ms-ai-settings-body::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px;}
       .ms-settings-note strong{color:var(--text2);}
 
       /* Provider cards */
-      .ms-provider-card{border:1px solid var(--border);border-radius:12px;background:var(--bg2);overflow:hidden;transition:border-color 0.15s;}
+      .ms-provider-card{border:1px solid var(--border);border-radius:12px;background:var(--bg2);overflow:visible;transition:border-color 0.15s;}
       .ms-provider-card.has-key{border-color:#22c55e;}
       .ms-provider-header{display:flex;align-items:center;gap:10px;padding:10px 14px;cursor:pointer;user-select:none;}
       .ms-provider-header:hover{background:var(--bg3);}
@@ -351,7 +354,7 @@
       .ms-provider-status{font-size:11px;display:flex;align-items:center;gap:3px;flex-shrink:0;}
       .ms-provider-status.ok{color:#22c55e;}
       .ms-provider-status.empty{color:var(--text3);}
-      .ms-provider-body{padding:0 14px 12px;display:none;border-top:1px solid var(--border);max-height:400px;overflow-y:auto;}
+      .ms-provider-body{padding:0 14px 12px;display:none;border-top:1px solid var(--border);}
       .ms-provider-body.open{display:block;}
       .ms-provider-key-row{display:flex;gap:6px;align-items:center;margin-top:10px;}
       .ms-provider-key-input{flex:1;border:1px solid var(--border);background:var(--bg);color:var(--text);border-radius:8px;padding:7px 10px;font-family:'Inter',monospace;font-size:12px;outline:none;}
@@ -476,7 +479,7 @@
 
       return `
         <div class="ms-provider-card ${hasKey ? 'has-key' : ''}" id="ms-card-${p.id}">
-          <div class="ms-provider-header" onclick="document.getElementById('ms-body-${p.id}').classList.toggle('open')">
+          <div class="ms-provider-header" onclick="(function(){var b=document.getElementById('ms-body-${p.id}');b.classList.toggle('open');if(b.classList.contains('open')){setTimeout(function(){b.scrollIntoView({behavior:'smooth',block:'nearest'});},80);}})()">
             <div class="ms-provider-icon">${p.icon}</div>
             <div class="ms-provider-info">
               <div class="ms-provider-name">
