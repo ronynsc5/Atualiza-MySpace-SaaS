@@ -7896,15 +7896,15 @@ setTimeout(function(){
     } catch(e) { return false; }
   };
 
-  window.MySpace_addConnection = function(from, to, style) {
+  window.MySpace_addConnection = function(from, to, style, color) {
     try {
       connections.push({
         id: 'ac_' + Date.now(), from, to,
         style: style || 'curved', width: 2,
-        color: 'default', opacity: 1
+        color: color || 'default', opacity: 1
       });
       aiSave();
-      return true;h
+      return true;
     } catch(e) { return false; }
   };
 
