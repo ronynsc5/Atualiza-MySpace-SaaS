@@ -2,7 +2,7 @@ export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
   try {
-    const { endpoint, model, apiKey, providerId, task, prompt, payload, history } = req.body || {};
+    const { endpoint, model, apiKey, providerId, prompt, payload, history } = req.body || {};
     if (!apiKey) return res.status(400).json({ error: 'Configure sua API key nas configuracoes da IA.' });
 
     // ── Contexto completo do mapa ─────────────────────────────────
@@ -11,34 +11,25 @@ export default async function handler(req, res) {
 
     const nodesInfo = JSON.stringify(
       rawNodes.map(n => ({
-        id: n.id,
-        title: n.title || '',
-        note: n.note || '',
-        type: n.type || 'card',
-        x: Math.round(n.x || 0),
-        y: Math.round(n.y || 0),
-        bgColor: n.bgColor || 'none',
-        borderColor: n.borderColor || 'none',
-        textColor: n.textColor || '#1a1a18',
-        emoji: n.emoji || ''
+        id: n.id, title: n.title || '', note: n.note || '',
+        type: n.type || 'card', x: Math.round(n.x || 0), y: Math.round(n.y || 0),
+        bgColor: n.bgColor || 'none', borderColor: n.borderColor || 'none',
+        textColor: n.textColor || '#1a1a18', emoji: n.emoji || ''
       }))
     ).slice(0, 12000);
 
     const connsInfo = JSON.stringify(
-      rawConns.map(c => ({
-        id: c.id, from: c.from, to: c.to,
-        style: c.style || 'curved', color: c.color || 'default'
-      }))
+      rawConns.map(c => ({ id: c.id, from: c.from, to: c.to, style: c.style || 'curved', color: c.color || 'default' }))
     ).slice(0, 4000);
 
     // ── System prompt completo ────────────────────────────────────
-    const system = `Você é a IA do MySpace — um app de mapas mentais profissional.
+    const system = `Você é a IA do MySpace — app de mapas mentais profissional.
 Você é extremamente criativa, organizada e especialista em estruturar ideias visualmente.
 
 ═══════════════════════════════════════════════════════
 ESTADO ATUAL DO MAPA
 ═══════════════════════════════════════════════════════
-NÓS EXISTENTES (use esses IDs exatos para editar/conectar):
+NÓS EXISTENTES:
 ${nodesInfo || '[]'}
 
 CONEXÕES EXISTENTES:
@@ -48,130 +39,70 @@ ${connsInfo || '[]'}
 SUAS CAPACIDADES COMPLETAS
 ═══════════════════════════════════════════════════════
 
-AÇÕES QUE VOCÊ PODE EXECUTAR:
+AÇÕES DISPONÍVEIS:
 
-1. CREATE_NODE — Criar um nó novo
-   {"type":"create_node","title":"Título","note":"Descrição/detalhe","x":300,"y":200,"node_type":"card","emoji":"🎯","bgColor":"#fef3c7","borderColor":"#f59e0b","textColor":"#1a1a18"}
+1. CREATE_NODE
+{"type":"create_node","title":"Título","note":"Descrição","x":300,"y":200,"node_type":"card","emoji":"🎯","bgColor":"#fef3c7","borderColor":"#f59e0b","textColor":"#1a1a18"}
 
-2. UPDATE_NODE — Editar nó existente (use o ID exato da lista acima)
-   {"type":"update_node","id":"n1","title":"Novo título","note":"Nova nota","bgColor":"#hex","borderColor":"#hex","textColor":"#hex","emoji":"🔥"}
+2. UPDATE_NODE (use o ID exato da lista acima)
+{"type":"update_node","id":"n1","title":"Novo título","note":"Nova nota","bgColor":"#hex","borderColor":"#hex","textColor":"#hex","emoji":"🔥","x":300,"y":200}
+IMPORTANTE: update_node também aceita "x" e "y" para MOVER o nó de posição!
 
-3. DELETE_NODE — Deletar nó
-   {"type":"delete_node","id":"n1"}
+3. DELETE_NODE
+{"type":"delete_node","id":"n1"}
 
-4. CREATE_CONNECTION — Criar conexão entre nós
-   {"type":"create_connection","from":"n1","to":"n2","style":"curved","color":"#ef4444"}
-   Estilos disponíveis: "curved", "straight", "stepped", "dashed"
-
-═══════════════════════════════════════════════════════
-PALETA DE CORES DISPONÍVEL
-═══════════════════════════════════════════════════════
-Amarelo suave:  bgColor "#fef3c7", borderColor "#f59e0b"
-Laranja suave:  bgColor "#fed7aa", borderColor "#f97316"
-Vermelho suave: bgColor "#fecaca", borderColor "#ef4444"
-Rosa suave:     bgColor "#fbcfe8", borderColor "#ec4899"
-Roxo suave:     bgColor "#e9d5ff", borderColor "#a855f7"
-Azul suave:     bgColor "#bfdbfe", borderColor "#3b82f6"
-Verde suave:    bgColor "#d1fae5", borderColor "#10b981"
-Cinza suave:    bgColor "#e5e7eb", borderColor "#6b7280"
-Preto sólido:   bgColor "#1a1a18", borderColor "#1a1a18", textColor "#ffffff"
-Branco:         bgColor "#ffffff", borderColor "#e0e0dd"
+4. CREATE_CONNECTION
+{"type":"create_connection","from":"n1","to":"n2","style":"curved","color":"#ef4444"}
+Estilos: "curved", "straight", "stepped", "dashed"
 
 ═══════════════════════════════════════════════════════
-MODELOS DE MAPAS MENTAIS QUE VOCÊ CONHECE
+PALETA DE CORES
 ═══════════════════════════════════════════════════════
-
-🗺️ MAPA CENTRAL (Hub and Spoke)
-- 1 nó central grande no meio (500, 350)
-- 5-8 nós ao redor em círculo com cores diferentes
-- Todos conectados ao centro com conexões coloridas
-- Ideal para: brainstorm, exploração de tema
-
-🌳 MAPA HIERÁRQUICO (Árvore)
-- Raiz no topo (600, 100)
-- 3-4 ramos principais na segunda linha (y: 300)
-- 2-3 folhas por ramo (y: 500)
-- Conexões em linha reta de cima pra baixo
-- Ideal para: estruturas, organogramas, taxonomias
-
-📋 MAPA DE PROJETO (Kanban Visual)
-- Colunas: A Fazer (x:150) | Em Progresso (x:450) | Concluído (x:750)
-- Cards empilhados verticalmente em cada coluna
-- Cores por prioridade: vermelho=urgente, amarelo=normal, verde=ok
-- Ideal para: gestão de projetos, tarefas
-
-🔄 MAPA DE PROCESSO (Fluxo)
-- Nós em sequência da esquerda pra direita (y fixo: 350)
-- Conexões com seta mostrando direção do fluxo
-- Losangos para decisões (use diamond shape)
-- Ideal para: processos, workflows, jornadas
-
-💡 MAPA DE PROBLEMA (5 Porquês)
-- Problema central no meio (vermelho)
-- 5 nós "Por quê?" em anel ao redor
-- Cada "Por quê?" com suas causas embaixo
-- Ideal para: análise de causa raiz, debugging
-
-📊 MAPA SWOT
-- 4 quadrantes: Forças (verde, x:200,y:200), Fraquezas (vermelho, x:600,y:200)
-- Oportunidades (azul, x:200,y:500), Ameaças (laranja, x:600,y:500)
-- Cada quadrante com 3-5 pontos como nós filhos
-- Ideal para: análise estratégica, negócios
-
-🎓 MAPA DE ESTUDO (Conceitos)
-- Conceito principal no centro (roxo, grande)
-- Definições e exemplos ao redor
-- Conexões explicando relações
-- Ideal para: aprendizado, revisão de matéria
+Amarelo:  bgColor "#fef3c7", borderColor "#f59e0b"
+Laranja:  bgColor "#fed7aa", borderColor "#f97316"
+Vermelho: bgColor "#fecaca", borderColor "#ef4444"
+Rosa:     bgColor "#fbcfe8", borderColor "#ec4899"
+Roxo:     bgColor "#e9d5ff", borderColor "#a855f7"
+Azul:     bgColor "#bfdbfe", borderColor "#3b82f6"
+Verde:    bgColor "#d1fae5", borderColor "#10b981"
+Cinza:    bgColor "#e5e7eb", borderColor "#6b7280"
+Preto:    bgColor "#1a1a18", borderColor "#1a1a18", textColor "#ffffff"
 
 ═══════════════════════════════════════════════════════
-REGRAS DE RESPOSTA
+MODELOS DE MAPAS MENTAIS
 ═══════════════════════════════════════════════════════
 
-REGRA 1: Quando criar/editar/organizar o mapa → responda SOMENTE com JSON puro:
-{
-  "reply": "Mensagem amigável explicando o que fiz (nunca mencione JSON)",
-  "actions": [ ...lista de ações... ]
-}
-
-REGRA 2: Só conversa sem modificação → texto normal, sem JSON.
-
-REGRA 3: NUNCA invente IDs. Use SOMENTE os IDs da lista acima.
-
-REGRA 4: Distribuição espacial inteligente:
-- X entre 100 e 1100, Y entre 100 e 650
-- Espaçamento mínimo 180px entre nós
-- Organize em padrões visuais (círculo, árvore, grid, etc.)
-
-REGRA 5: Quando criar um mapa, SEMPRE:
-- Use cores diferentes para categorias diferentes
-- Adicione emojis relevantes em cada nó
-- Crie conexões entre os nós relacionados
-- Escreva notas descritivas nos nós principais
-- Crie pelo menos 8-12 nós para um mapa rico
-
-REGRA 6: Seja PROATIVA e CRIATIVA:
-- Se o usuário pedir "crie um mapa sobre X", escolha o modelo mais adequado
-- Adicione detalhes que o usuário não pediu mas que enriquecem o mapa
-- Sugira próximos passos após criar
-
-REGRA 7: Responda SEMPRE em português do Brasil.
+🗺️ HUB (Central): 1 nó central + 6-8 ramos ao redor em círculo. Ideal para brainstorm.
+🌳 ÁRVORE: Raiz no topo, ramos na segunda linha, folhas na terceira. Ideal para hierarquias.
+📋 KANBAN: Colunas A Fazer | Em Progresso | Concluído. Ideal para projetos.
+🔄 FLUXO: Nós em sequência esquerda→direita. Ideal para processos.
+📊 SWOT: 4 quadrantes Forças/Fraquezas/Oportunidades/Ameaças. Ideal para análise.
+🎓 ESTUDO: Conceito central + definições + exemplos + aplicações. Ideal para aprendizado.
+💡 5 PORQUÊS: Problema central + 5 níveis de causas. Ideal para análise de problemas.
 
 ═══════════════════════════════════════════════════════
-EXEMPLOS DE BOAS RESPOSTAS
+REGRAS
 ═══════════════════════════════════════════════════════
+1. Modificação → responda SOMENTE JSON puro (sem markdown):
+{"reply":"Mensagem amigável","actions":[...]}
+2. Só conversa → texto normal, sem JSON.
+3. NUNCA invente IDs. Use SOMENTE os da lista acima.
+4. X entre 100-1100, Y entre 100-650, espaçamento mínimo 180px.
+5. Sempre use cores diferentes por categoria, emojis nos nós, notas descritivas.
+6. Crie no mínimo 8-12 nós para um mapa rico.
+7. Sempre crie conexões entre nós relacionados.
+8. Responda SEMPRE em português do Brasil.
 
-Usuário: "crie um mapa para minha startup de delivery"
-→ Cria mapa Hub and Spoke com: centro "Startup Delivery", ramos: Produto, Marketing, Operações, Financeiro, Tecnologia, cada um com 2-3 subnós detalhados, cores por área, emojis relevantes, ~15 nós no total.
-
-Usuário: "organize meu projeto em etapas"
-→ Cria mapa de Processo sequencial com fases, marcos e entregáveis.
-
-Usuário: "quero estudar machine learning"
-→ Cria mapa hierárquico com: conceitos base → algoritmos → aplicações → ferramentas, com notas explicativas em cada nó.
-
-Usuário: "analise meus pontos fortes e fracos"
-→ Cria mapa SWOT completo.`;
+REGRA CRÍTICA — ORGANIZAR/REORGANIZAR:
+Quando o usuário pedir para "organizar", "reorganizar", "distribuir", "espaçar" ou "arrumar" o mapa:
+- NUNCA crie nós novos (create_node)
+- Use APENAS update_node com os IDs existentes acima, mudando somente x e y
+- Mova TODOS os nós existentes para novas posições organizadas
+- Exemplo de reorganização em árvore:
+  {"type":"update_node","id":"n1","x":600,"y":100}
+  {"type":"update_node","id":"n2","x":300,"y":300}
+  {"type":"update_node","id":"n3","x":600,"y":300}
+  {"type":"update_node","id":"n4","x":900,"y":300}`;
 
     // ── Monta mensagens ───────────────────────────────────────────
     const msgs = [{ role: 'system', content: system }];
@@ -184,10 +115,93 @@ Usuário: "analise meus pontos fortes e fracos"
     }
     msgs.push({ role: 'user', content: String(prompt || '').slice(0, 5000) });
 
-    // ── Chama provider com cascata ────────────────────────────────
-    const isGemini = providerId === 'gemini' || (endpoint && endpoint.includes('generativelanguage'));
+    // ── SISTEMA DE ROTATIVIDADE ───────────────────────────────────
+    // Quando um modelo/provider atinge o limite, o sistema tenta o próximo
+    // automaticamente até encontrar um que funcione.
+    // A ordem prioriza velocidade e qualidade.
 
-    async function callOpenAI(ep, mdl, key) {
+    function buildProviderList(providerId, endpoint, model, apiKey) {
+      const isGemini = providerId === 'gemini' || (endpoint && endpoint.includes('generativelanguage'));
+      const isGroq = providerId === 'groq' || (endpoint && endpoint.includes('groq'));
+      const isOpenAI = providerId === 'openai' || (endpoint && endpoint.includes('openai'));
+      const isAnthropic = providerId === 'anthropic' || (endpoint && endpoint.includes('anthropic'));
+
+      const providers = [];
+
+      // 1. Provider configurado pelo usuário (sempre primeiro)
+      if (isGemini) {
+        providers.push({ type: 'gemini', model, apiKey, label: model });
+      } else if (isAnthropic) {
+        // Anthropic tem endpoint diferente, skip cascata por ora
+        providers.push({ type: 'openai-compat', endpoint, model, apiKey, label: model });
+      } else {
+        providers.push({ type: 'openai-compat', endpoint, model, apiKey, label: model });
+      }
+
+      // 2. Rotatividade Groq — modelos gratuitos em ordem de capacidade
+      if (!isGroq || model !== 'llama-3.3-70b-versatile') {
+        providers.push({
+          type: 'openai-compat',
+          endpoint: 'https://api.groq.com/openai/v1/chat/completions',
+          model: 'llama-3.3-70b-versatile',
+          apiKey,
+          label: 'Groq llama-3.3-70b'
+        });
+      }
+      providers.push({
+        type: 'openai-compat',
+        endpoint: 'https://api.groq.com/openai/v1/chat/completions',
+        model: 'llama-3.1-8b-instant',
+        apiKey,
+        label: 'Groq llama-3.1-8b'
+      });
+      providers.push({
+        type: 'openai-compat',
+        endpoint: 'https://api.groq.com/openai/v1/chat/completions',
+        model: 'gemma2-9b-it',
+        apiKey,
+        label: 'Groq gemma2-9b'
+      });
+      providers.push({
+        type: 'openai-compat',
+        endpoint: 'https://api.groq.com/openai/v1/chat/completions',
+        model: 'mixtral-8x7b-32768',
+        apiKey,
+        label: 'Groq mixtral-8x7b'
+      });
+
+      // 3. Rotatividade Gemini — se tiver key do Gemini
+      if (!isGemini) {
+        providers.push({
+          type: 'gemini',
+          model: 'gemini-2.0-flash',
+          apiKey,
+          label: 'Gemini 2.0 Flash'
+        });
+        providers.push({
+          type: 'gemini',
+          model: 'gemini-1.5-flash',
+          apiKey,
+          label: 'Gemini 1.5 Flash'
+        });
+      } else {
+        // Usuário usa Gemini: rotaciona entre modelos Gemini
+        providers.push({ type: 'gemini', model: 'gemini-2.0-flash', apiKey, label: 'Gemini 2.0 Flash' });
+        providers.push({ type: 'gemini', model: 'gemini-1.5-flash', apiKey, label: 'Gemini 1.5 Flash' });
+        providers.push({ type: 'gemini', model: 'gemini-1.5-pro', apiKey, label: 'Gemini 1.5 Pro' });
+      }
+
+      // Remove duplicatas mantendo a ordem
+      const seen = new Set();
+      return providers.filter(p => {
+        const key = `${p.type}-${p.model}`;
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+    }
+
+    async function callOpenAICompat(ep, mdl, key) {
       const r = await fetch(ep, {
         method: 'POST',
         headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
@@ -216,24 +230,55 @@ Usuário: "analise meus pontos fortes e fracos"
       return d.candidates?.[0]?.content?.parts?.[0]?.text || '';
     }
 
-    // Tenta provider principal, depois cascata para Groq
+    function isRateLimitError(err) {
+      const msg = String(err?.message || '').toLowerCase();
+      return (
+        msg.includes('rate limit') ||
+        msg.includes('quota') ||
+        msg.includes('429') ||
+        msg.includes('too many requests') ||
+        msg.includes('resource exhausted') ||
+        msg.includes('limit exceeded') ||
+        msg.includes('insufficient_quota')
+      );
+    }
+
+    // ── Executa com rotatividade ──────────────────────────────────
+    const providers = buildProviderList(providerId, endpoint, model, apiKey);
     let rawText = '';
-    try {
-      if (isGemini) rawText = await callGemini(model, apiKey);
-      else rawText = await callOpenAI(endpoint, model, apiKey);
-    } catch (err) {
-      console.warn('[ai-proxy] Provider falhou:', err.message);
-      // Cascata: tenta Groq como fallback
-      const groqEndpoint = 'https://api.groq.com/openai/v1/chat/completions';
-      const groqModel = 'llama-3.3-70b-versatile';
+    let usedProvider = 'unknown';
+    let lastError = null;
+
+    for (const provider of providers) {
       try {
-        rawText = await callOpenAI(groqEndpoint, groqModel, apiKey);
-      } catch (fallbackErr) {
-        return res.status(400).json({ error: err.message || 'Erro no provider. Verifique sua API key.' });
+        if (provider.type === 'gemini') {
+          rawText = await callGemini(provider.model, provider.apiKey);
+        } else {
+          rawText = await callOpenAICompat(provider.endpoint, provider.model, provider.apiKey);
+        }
+        usedProvider = provider.label;
+        lastError = null;
+        break; // Sucesso! Para o loop.
+      } catch (err) {
+        lastError = err;
+        const isRateLimit = isRateLimitError(err);
+        console.warn(`[ai-proxy] ${provider.label} falhou (${isRateLimit ? 'rate limit' : 'erro'}):`, err.message);
+
+        // Só continua rotatividade se for rate limit ou quota
+        // Erros de autenticação (401) não adianta tentar outro
+        if (!isRateLimit && !String(err.message).includes('50')) {
+          break;
+        }
       }
     }
 
-    // ── Parser robusto de JSON ────────────────────────────────────
+    if (!rawText) {
+      return res.status(400).json({
+        error: lastError?.message || 'Todos os providers falharam. Verifique sua API key.'
+      });
+    }
+
+    // ── Parser robusto ────────────────────────────────────────────
     let reply = rawText.trim();
     let actions = null;
 
@@ -250,7 +295,7 @@ Usuário: "analise meus pontos fortes e fracos"
       }
     } catch (_) {}
 
-    return res.status(200).json({ text: reply, actions });
+    return res.status(200).json({ text: reply, actions, provider: usedProvider });
 
   } catch (err) {
     console.error('[ai-proxy] error:', err);
