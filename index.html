@@ -261,11 +261,11 @@ body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--tex
 /* ── OVERLAYS ── */
 .overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.4); backdrop-filter: blur(2px); z-index: 999; display: none; }
 .overlay.show { display: block; }
-.modal { position: fixed; top: 50%; left: 50%; transform: translate(-50%,-50%) scale(0.96); background: var(--bg); border: 1px solid var(--border); border-radius: 12px; box-shadow: 0 16px 52px var(--shadow2); z-index: 1001; display: none; opacity: 0; transition: all 0.22s cubic-bezier(0.4,0,0.2,1); min-width: 380px; max-width: 480px; }
-.modal.show { display: block; opacity: 1; transform: translate(-50%,-50%) scale(1); }
-.modal-hdr { padding: 18px 22px; border-bottom: 1px solid var(--border); font-size: 15px; font-weight: 600; }
-.modal-body { padding: 20px 22px; }
-.modal-ftr { padding: 14px 22px; border-top: 1px solid var(--border); display: flex; gap: 8px; justify-content: flex-end; }
+.modal { position: fixed; top: 50%; left: 50%; transform: translate(-50%,-50%) scale(0.96); background: var(--bg); border: 1px solid var(--border); border-radius: 12px; box-shadow: 0 16px 52px var(--shadow2); z-index: 1001; display: none; opacity: 0; transition: all 0.22s cubic-bezier(0.4,0,0.2,1); min-width: 380px; max-width: 480px; max-height: 90vh; flex-direction: column; }
+.modal.show { display: flex; opacity: 1; transform: translate(-50%,-50%) scale(1); }
+.modal-hdr { padding: 18px 22px; border-bottom: 1px solid var(--border); font-size: 15px; font-weight: 600; flex-shrink: 0; }
+.modal-body { padding: 20px 22px; overflow-y: auto; flex: 1; }
+.modal-ftr { padding: 14px 22px; border-top: 1px solid var(--border); display: flex; gap: 8px; justify-content: flex-end; flex-shrink: 0; }
 .modal-btn { background: var(--bg2); border: 1px solid var(--border); border-radius: 7px; padding: 9px 18px; font-size: 13px; font-weight: 500; color: var(--text); cursor: pointer; font-family: 'Inter', sans-serif; transition: all 0.15s; }
 .modal-btn:hover { background: var(--bg3); }
 .modal-btn.primary { background: var(--accent); color: var(--bg); border-color: var(--accent); }
@@ -319,6 +319,12 @@ body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--tex
 .style-3d { background: linear-gradient(145deg, #e6e6e6, #ffffff); box-shadow: 5px 5px 10px #d1d1d1, -5px -5px 10px #ffffff; border-color: transparent; }
 .style-soft { background: #ffffff; border-color: #e5e7eb; box-shadow: 0 10px 30px rgba(0,0,0,0.1); }
 .style-cyber { background: #000; border: 2px solid #ff00de; box-shadow: 0 0 20px rgba(255,0,222,0.4), inset 0 0 20px rgba(0,255,255,0.2); }
+.style-terminal { background: #0d1117; border-color: #30a14e; box-shadow: 0 0 8px rgba(48,161,78,0.4); }
+.style-material { background: #ffffff; border-color: transparent; box-shadow: 0 2px 4px rgba(0,0,0,0.12), 0 4px 16px rgba(0,0,0,0.08); }
+.style-outline { background: transparent; border: 2px dashed var(--border2); }
+.modal-body::-webkit-scrollbar { width: 6px; }
+.modal-body::-webkit-scrollbar-track { background: transparent; }
+.modal-body::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
 
 /* ══════════════════════════════════════════════════════════════ */
 /* ── DASHBOARD DE PROJETOS ──────────────────────────────────── */
@@ -891,8 +897,7 @@ body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--tex
   </div>
 </div>
 
-<!-- Shape Selector Modal -->
-<div class="modal" id="modal-shapes" style="max-width:600px;">
+<div class="modal" id="modal-shapes" style="max-width:600px;width:min(600px,92vw);">
   <div class="modal-hdr">Selecionar Forma</div>
   <div class="modal-body">
     <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;">
@@ -914,7 +919,7 @@ body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--tex
 </div>
 
 <!-- Style Selector Modal -->
-<div class="modal" id="modal-styles" style="max-width:600px;">
+<div class="modal" id="modal-styles" style="max-width:600px;width:min(600px,92vw);">
   <div class="modal-hdr">Selecionar Estilo Visual</div>
   <div class="modal-body">
     <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;">
@@ -927,6 +932,9 @@ body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--tex
       <div class="style-option" data-style="3d"><div class="style-preview style-3d"></div><div class="style-name">3D</div></div>
       <div class="style-option" data-style="soft"><div class="style-preview style-soft"></div><div class="style-name">Soft Shadows</div></div>
       <div class="style-option" data-style="cyberpunk"><div class="style-preview style-cyber"></div><div class="style-name">Cyberpunk</div></div>
+      <div class="style-option" data-style="terminal"><div class="style-preview style-terminal"></div><div class="style-name">Terminal</div></div>
+      <div class="style-option" data-style="material"><div class="style-preview style-material"></div><div class="style-name">Material</div></div>
+      <div class="style-option" data-style="outline"><div class="style-preview style-outline"></div><div class="style-name">Outline</div></div>
     </div>
   </div>
   <div class="modal-ftr">
@@ -2892,6 +2900,15 @@ function applyStylePreset(node, preset) {
       break;
     case 'cyberpunk':
       node.bgColor='#000'; node.borderColor='#ff00de'; node.glow=15; node.glowColor='#ff00de';
+      break;
+    case 'terminal':
+      node.bgColor='#0d1117'; node.borderColor='#30a14e'; node.borderWidth=1; node.glow=5; node.glowColor='#30a14e';
+      break;
+    case 'material':
+      node.bgColor='#ffffff'; node.borderColor='transparent'; node.borderWidth=0; node.shadowIntensity=2;
+      break;
+    case 'outline':
+      node.bgColor='none'; node.borderColor=cssVar('--border2'); node.borderWidth=2; node.glow=0;
       break;
   }
 }
@@ -6613,7 +6630,7 @@ setTimeout(function(){
 #right-panel .rpanel-body{overflow-y:auto!important;overflow-x:hidden!important;}
 #settings-modal .sm-content{overflow-y:auto!important;}
 #settings-modal .sm-sidebar{overflow-y:auto!important;}
-.modal-body{overflow-y:auto!important;max-height:60vh;}
+.modal-body{overflow-y:auto!important;}
 #act-int-list{overflow-y:auto!important;max-height:200px;}
 #projects-list{overflow-y:auto!important;max-height:320px;}
 #emoji-picker{overflow-y:auto!important;max-height:300px!important;}
