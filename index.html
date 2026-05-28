@@ -1112,14 +1112,16 @@ const BORDER_COLORS = { card:'none', folder:'#f59e0b', note:'#10b981' };
 const EMOJIS_DEFAULT = { card:'📝', folder:'📁', note:'🗒️' };
 
 function createNode(x, y, type='card') {
+  const w = type==='folder'?160:(type==='note'?180:200);
+  const defaultIconSize = Math.round(w * 0.20); // ~20% da largura = tamanho legível e proporcional
   return {
     id: `n${nodeIdCtr++}`, type, x, y,
-    width: type==='folder'?160:(type==='note'?180:200),
+    width: w,
     height: type==='folder'?120:(type==='note'?130:140),
     title: type==='folder'?'Nova Pasta':(type==='note'?'Nota':'Novo Card'),
     note: '',
     emoji: EMOJIS_DEFAULT[type]||'',
-    iconSize: 28,
+    iconSize: defaultIconSize,
     bgColor: BG_COLORS[type]||'none',
     bgOpacity: 1,
     borderColor: BORDER_COLORS[type]||'none',
@@ -2105,7 +2107,7 @@ cvs.addEventListener('mousedown', e=>{
     if(e.detail===2) { if(!activateNode(n)) startInlineEdit(n,e); return; }
     if(isResizeHandle(n,mx,my) && !n.locked) {
       isResizing=true; resizeNode=n;
-      resizeStart={mx,my,w:n.width,h:n.minimized?44:n.height};
+      resizeStart={mx,my,w:n.width,h:n.minimized?44:n.height,iconSize:n.iconSize||({'icon':42,'folder':32,'note':28,'card':28}[n.type]||28)};
       return;
     }
     selectNodeObj(n);
@@ -2131,8 +2133,16 @@ cvs.addEventListener('mousemove', e=>{
   if(isResizing&&resizeNode) {
     const dx=mx-resizeStart.mx, dy=my-resizeStart.my;
     const oldW = resizeNode.width, oldH = resizeNode.height;
-    resizeNode.width=Math.max(80,resizeStart.w+dx);
-    resizeNode.height=Math.max(50,resizeStart.h+dy);
+    const isIcon = resizeNode.type === 'icon';
+    const minW = isIcon ? 24 : 80;
+    const minH = isIcon ? 24 : 50;
+    resizeNode.width  = Math.max(minW, resizeStart.w + dx);
+    resizeNode.height = Math.max(minH, resizeStart.h + dy);
+    // iconSize escala proporcionalmente em TODOS os tipos de nó
+    if(resizeStart.iconSize > 0 && resizeStart.w > 0) {
+      const scale = resizeNode.width / resizeStart.w;
+      resizeNode.iconSize = Math.max(10, Math.min(200, Math.round(resizeStart.iconSize * scale)));
+    }
     // Redimensionar filhos proporcionalmente
     resizeChildrenProportionally(resizeNode, oldW, oldH);
     updatePanel(); draw();
@@ -2202,6 +2212,13 @@ window.addEventListener('mouseup',()=>{ isDragging=false; dragNode=null; isPanni
 
 cvs.addEventListener('wheel',e=>{
   e.preventDefault();
+  // Shift + scroll → tamanho do ícone do card selecionado
+  if(e.shiftKey && selectedNode && !selectedNode.locked) {
+    const delta = e.deltaY > 0 ? -2 : 2;
+    selectedNode.iconSize = Math.max(10, Math.min(200, (selectedNode.iconSize||28) + delta));
+    saveHist(); draw(); triggerSave(); updatePanel();
+    return;
+  }
   const rect=cvs.getBoundingClientRect();
   const mx=e.clientX-rect.left, my=e.clientY-rect.top;
   const wx=(mx-camera.x)/camera.zoom, wy=(my-camera.y)/camera.zoom;
@@ -3060,6 +3077,31 @@ document.addEventListener('keydown',e=>{
   if(e.key==='l'&&!e.ctrlKey){document.getElementById('tool-connect').click();}
   if(e.key==='h'&&!e.ctrlKey){document.getElementById('tool-hand').click();}
   if(e.key==='i'&&!e.ctrlKey){document.getElementById('tool-image').click();}
+
+  // ── Redimensionar com teclado (card selecionado + não editando) ──
+  if(selectedNode && !selectedNode.locked && !inlineEditing) {
+    if(e.key==='=' || e.key==='+') {
+      e.preventDefault();
+      selectedNode.width += 20; selectedNode.height += 20;
+      saveHist(); draw(); triggerSave(); updatePanel();
+    }
+    if(e.key==='-' || e.key==='_') {
+      e.preventDefault();
+      selectedNode.width  = Math.max(selectedNode.type==='icon'?24:80, selectedNode.width  - 20);
+      selectedNode.height = Math.max(selectedNode.type==='icon'?24:50, selectedNode.height - 20);
+      saveHist(); draw(); triggerSave(); updatePanel();
+    }
+    if(e.shiftKey && (e.key==='+' || e.key==='=')) {
+      e.preventDefault();
+      selectedNode.iconSize = Math.min(200, (selectedNode.iconSize||28) + 4);
+      saveHist(); draw(); triggerSave(); updatePanel();
+    }
+    if(e.shiftKey && e.key==='-') {
+      e.preventDefault();
+      selectedNode.iconSize = Math.max(10, (selectedNode.iconSize||28) - 4);
+      saveHist(); draw(); triggerSave(); updatePanel();
+    }
+  }
   if(e.key==='w'&&!e.ctrlKey){document.getElementById('tool-wormhole').click();}
 });
 
@@ -3288,6 +3330,184 @@ triggerSave();
 if(Object.keys(workspaces).length > 1) {
   // showDashboard(); // Descomentado para iniciar no dashboard
 }
+
+// ─── FLOATING HUD ────────────────────────────────────────────────
+// Roda no escopo principal — acesso direto a selectedNode, camera, draw, ctx etc
+
+(function initHUD() {
+
+  // ── CSS ──
+  const st = document.createElement('style');
+  st.textContent =
+    '#ms-hud{position:fixed;z-index:700;display:none;align-items:center;pointer-events:none;user-select:none;}' +
+    '#ms-hud.v{display:flex;}' +
+    '.hb{display:flex;align-items:center;gap:1px;background:var(--bg);border:1.5px solid var(--border2);border-radius:12px;padding:3px 6px;box-shadow:0 6px 22px var(--shadow2);pointer-events:all;gap:2px;}' +
+    '.hb-btn{width:34px;height:34px;border:none;background:none;border-radius:9px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:18px;line-height:1;color:var(--text2);font-family:Inter,sans-serif;font-weight:700;touch-action:none;}' +
+    '.hb-btn:hover{background:var(--bg3);color:var(--text);}' +
+    '.hb-btn:active{background:var(--accent);color:var(--bg);}' +
+    '.hb-sep{width:1px;height:18px;background:var(--border2);margin:0 4px;flex-shrink:0;}' +
+    '.hb-val{font-size:11px;color:var(--text3);font-family:Inter,sans-serif;min-width:26px;text-align:center;font-variant-numeric:tabular-nums;pointer-events:none;}' +
+    '.hb-ico{font-size:13px;opacity:.55;padding:0 2px;pointer-events:none;}';
+  document.head.appendChild(st);
+
+  // ── HTML ──
+  const hud = document.createElement('div');
+  hud.id = 'ms-hud';
+  hud.innerHTML =
+    '<div class="hb">' +
+      '<button class="hb-btn" id="hb-wm" title="Card menor">&#8722;</button>' +
+      '<span class="hb-val" id="hb-wv">···</span>' +
+      '<button class="hb-btn" id="hb-wp" title="Card maior">+</button>' +
+      '<div class="hb-sep"></div>' +
+      '<span class="hb-ico">&#128161;</span>' +
+      '<button class="hb-btn" id="hb-im" title="\xCdcone menor" style="font-size:15px">&#8722;</button>' +
+      '<span class="hb-val" id="hb-iv">···</span>' +
+      '<button class="hb-btn" id="hb-ip" title="\xCdcone maior" style="font-size:15px">+</button>' +
+    '</div>';
+  document.body.appendChild(hud);
+
+  // ── REFERÊNCIA ESTÁVEL AO NÓ SELECIONADO ──
+  // Guardamos aqui pra não perder o ref se selectedNode virar null antes do pointerdown processar
+  let _hudNode = null;
+
+  // ── BLOQUEIA TODOS OS EVENTOS DO BAR CHEGAREM AO CANVAS ──
+  const bar = hud.querySelector('.hb');
+  ['pointerdown','mousedown','touchstart'].forEach(function(evt) {
+    bar.addEventListener(evt, function(e) {
+      e.stopPropagation();
+      e.preventDefault();
+    }, { capture: true });
+  });
+
+  // ── AÇÃO GENÉRICA ──
+  function act(fn) {
+    const n = _hudNode;
+    if (!n || n.locked) return;
+    fn(n);
+    saveHist();
+    draw();
+    triggerSave();
+    updatePanel();
+    posHUD();
+  }
+
+  // ── USAR pointerup em vez de onclick ─ mais confiável ──
+  function addAction(id, fn) {
+    const btn = document.getElementById(id);
+    btn.addEventListener('pointerup', function(e) {
+      e.stopPropagation();
+      e.preventDefault();
+      act(fn);
+    });
+    // Garantia: também no click, caso pointerup não dispare
+    btn.addEventListener('click', function(e) {
+      e.stopPropagation();
+      act(fn);
+    });
+  }
+
+  addAction('hb-wm', function(n) {
+    n.width  = Math.max(80, n.width  - 20);
+    n.height = Math.max(50, n.height - 20);
+  });
+  addAction('hb-wp', function(n) {
+    n.width  += 20;
+    n.height += 20;
+  });
+  addAction('hb-im', function(n) {
+    n.iconSize = Math.max(10, (n.iconSize || 28) - 4);
+  });
+  addAction('hb-ip', function(n) {
+    n.iconSize = Math.min(120, (n.iconSize || 28) + 4);
+  });
+
+  // ── POSICIONAMENTO ──
+  function posHUD() {
+    const n = _hudNode || selectedNode;
+    if (!n) { hud.classList.remove('v'); return; }
+
+    const SB = 64, TB = 52;
+    const sx = n.x * camera.zoom + camera.x + SB;
+    const sy = n.y * camera.zoom + camera.y + TB;
+    const sw = n.width * camera.zoom;
+    const sh = (n.minimized ? 44 : n.height) * camera.zoom;
+
+    const hw = hud.offsetWidth || 200;
+    let left = sx + sw / 2 - hw / 2;
+    let top  = sy - 52;
+    if (top < 58) top = sy + sh + 10;
+
+    left = Math.max(SB + 4, Math.min(window.innerWidth - hw - 4, left));
+    hud.style.left = Math.round(left) + 'px';
+    hud.style.top  = Math.round(top)  + 'px';
+    hud.classList.add('v');
+
+    document.getElementById('hb-wv').textContent = Math.round(n.width);
+    document.getElementById('hb-iv').textContent = (n.iconSize || 28);
+  }
+
+  // ── HOOK NO selectNodeObj ──
+  const _origSelect = selectNodeObj;
+  selectNodeObj = window.selectNodeObj = function(node) {
+    _origSelect(node);
+    // Ícones puros usam drag direto — HUD desnecessário pra eles
+    _hudNode = (node && node.type !== 'icon') ? node : null;
+    if (_hudNode) posHUD();
+    else hud.classList.remove('v');
+  };
+
+  // ── RAF LOOP ──
+  function loop() {
+    // Sincroniza _hudNode com selectedNode (pode mudar por outros caminhos)
+    if (selectedNode && selectedNode !== _hudNode) _hudNode = selectedNode;
+    if (!selectedNode && _hudNode) {
+      // Mantém HUD visível por 100ms após deselect — permite pointerup chegar
+      setTimeout(function() {
+        if (!selectedNode) { _hudNode = null; hud.classList.remove('v'); }
+      }, 120);
+    }
+    if (_hudNode) posHUD();
+    requestAnimationFrame(loop);
+  }
+  requestAnimationFrame(loop);
+
+  // ── HANDLE DE RESIZE MAIOR (zona de clique 18px, visual 9px) ──
+  const _origIsResize = isResizeHandle;
+  isResizeHandle = window.isResizeHandle = function(node, x, y) {
+    if (!node) return false;
+    const h = node.minimized ? 44 : node.height;
+    const thr = (node.type === 'icon' ? 28 : 18) / camera.zoom;
+    return Math.hypot(x - (node.x + node.width), y - (node.y + h)) < thr;
+  };
+
+  // ── HANDLE VISUAL REDESENHADO DEPOIS DO draw() ──
+  const _origDraw = draw;
+  draw = window.draw = function() {
+    _origDraw();
+    const n = selectedNode;
+    if (!n || n.locked) return;
+    const h = n.minimized ? 44 : n.height;
+    // posição em coordenadas de canvas (já dentro do ctx transformado)
+    ctx.save();
+    ctx.setTransform(camera.zoom, 0, 0, camera.zoom, camera.x, camera.y);
+    ctx.shadowColor = 'rgba(59,130,246,0.45)';
+    ctx.shadowBlur = 10 / camera.zoom;
+    ctx.fillStyle = '#3b82f6';
+    ctx.beginPath();
+    ctx.arc(n.x + n.width, n.y + h, 9 / camera.zoom, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.shadowBlur = 0;
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold ' + (11 / camera.zoom) + 'px Arial';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('\u2198', n.x + n.width, n.y + h + 0.5 / camera.zoom);
+    ctx.restore();
+  };
+
+  console.log('[HUD] pronto');
+})();
+
 
 </script>
 <script>
@@ -3910,17 +4130,17 @@ if(Object.keys(workspaces).length > 1) {
     syncBottomBarState();
   };
 
-  // Quando redimensionar um ícone livre pelo canto, altera também o iconSize para não parecer que só a caixa invisível aumentou.
+  // Sincroniza o slider do painel direito quando redimensionando ícone
   document.addEventListener('mousemove', function(){
     try{
       if(typeof isResizing !== 'undefined' && isResizing && resizeNode && resizeNode.type==='icon'){
-        const s=Math.max(8, Math.min(160, Math.round(Math.min(resizeNode.width, resizeNode.height) * 0.82)));
-        resizeNode.iconSize=s;
         const sl=byId('rp-iconsize-slider'), val=byId('rp-iconsize-val');
         if(selectedNode && selectedNode.id===resizeNode.id){
+          const s = resizeNode.iconSize || 42;
           if(sl) sl.value=s;
           if(val) val.textContent=s+'px';
         }
+
       }
     }catch(err){}
   }, true);
@@ -6410,13 +6630,25 @@ window.runAction=function(act){
       if(typeof roundRect==='function')roundRect(ctx,b.x,b.y,b.w,b.h,5/z);
       else{ctx.beginPath();ctx.rect(b.x,b.y,b.w,b.h);}
       ctx.fill();ctx.stroke();
-      if(!n.locked){var s=8/z;ctx.fillStyle='#2563eb';ctx.strokeStyle='#fff';ctx.lineWidth=1.5/z;ctx.beginPath();ctx.rect(b.x+b.w-s/2,b.y+b.h-s/2,s,s);ctx.fill();ctx.stroke();}
+      if(!n.locked){
+        var s=14/z;
+        ctx.fillStyle='#2563eb';ctx.strokeStyle='#fff';ctx.lineWidth=2/z;
+        ctx.beginPath();ctx.arc(b.x+b.w,b.y+b.h,s/2,0,Math.PI*2);ctx.fill();ctx.stroke();
+        ctx.fillStyle='#fff';ctx.font='bold '+(9/z)+'px Arial';
+        ctx.textAlign='center';ctx.textBaseline='middle';
+        ctx.fillText('\u2198',b.x+b.w,b.y+b.h+0.5/z);
+      }
       ctx.restore();
     }catch(e){}
   };
   var _r=window.isResizeHandle;
   window.isResizeHandle=function(node,x,y){
-    if(node&&T.has(node.type)){var z=camera.zoom||1,p=6/z;return Math.abs(x-(node.x+node.width+p))<=10/z&&Math.abs(y-(node.y+(node.minimized?44:node.height)+p))<=10/z;}
+    if(node&&T.has(node.type)){
+      var z=camera.zoom||1;
+      var hx=node.x+node.width, hy=node.y+(node.minimized?44:node.height);
+      var thr=24/z;
+      return Math.abs(x-hx)<=thr&&Math.abs(y-hy)<=thr;
+    }
     return _r?_r(node,x,y):false;
   };
 })();
@@ -7686,8 +7918,9 @@ setTimeout(function(){
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="./config.js"></script>
 <script src="./auth-paywall.js"></script>
-7672  <script src="./ai-assistant.js"></script><script src="./myspace-fixes.js"></script>
-7673  <script src="./ai-bridge-color-patch.js"></script>
-7674
-7675  </body>
-7676  </html>
+<script src="./ai-assistant.js"></script><script src="./myspace-fixes.js"></script>
+<script src="./ai-bridge-color-patch.js"></script>
+
+
+</body>
+</html>
