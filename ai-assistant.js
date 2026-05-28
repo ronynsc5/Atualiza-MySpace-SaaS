@@ -5,6 +5,7 @@
 
   const SETTINGS_KEY = 'myspace-ai-settings';
   const CHAT_KEY = 'myspace-ai-chat';
+
   function getSettings() {
     try { return JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}'); } catch (_) { return {}; }
   }
@@ -273,7 +274,9 @@
           <button class="ms-ai-suggestion">Analise meu projeto</button>
         </div>
         <div class="ms-ai-input-row">
-          <textarea class="ms-ai-input" id="ms-ai-input" placeholder="Digite sua mensagem..." rows="1"></textarea>
+          <button class="ms-ai-icon-btn" id="ms-ai-pdf-btn" title="Enviar PDF" style="flex-shrink:0;width:36px;height:36px;border-radius:10px;font-size:18px;">PDF</button>
+          <input type="file" id="ms-ai-pdf-input" accept=".pdf" style="display:none">
+          <textarea class="ms-ai-input" id="ms-ai-input" placeholder="Digite ou envie um PDF..." rows="1"></textarea>
           <button class="ms-ai-send" id="ms-ai-send" title="Enviar">➤</button>
         </div>
       </div>
@@ -532,6 +535,53 @@
       input.style.height = 'auto';
       input.style.height = Math.min(input.scrollHeight, 100) + 'px';
     });
+
+
+    // PDF Upload
+    const pdfBtn = document.getElementById('ms-ai-pdf-btn');
+    const pdfInput = document.getElementById('ms-ai-pdf-input');
+    if (pdfBtn && pdfInput) {
+      pdfBtn.addEventListener('click', () => pdfInput.click());
+      pdfInput.addEventListener('change', async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        pdfInput.value = '';
+        addMessage('ai', 'Lendo "' + file.name + '"... aguarde.', 'action');
+        try {
+          if (!window.pdfjsLib) {
+            await new Promise((resolve, reject) => {
+              const script = document.createElement('script');
+              script.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
+              script.onload = resolve;
+              script.onerror = () => reject(new Error('Falha ao carregar pdf.js'));
+              document.head.appendChild(script);
+            });
+            window.pdfjsLib.GlobalWorkerOptions.workerSrc =
+              'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+          }
+          const arrayBuffer = await file.arrayBuffer();
+          const pdf = await window.pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+          let fullText = '';
+          const maxPages = Math.min(pdf.numPages, 20);
+          for (let i = 1; i <= maxPages; i++) {
+            const page = await pdf.getPage(i);
+            const tc = await page.getTextContent();
+            fullText += tc.items.map(function(item){ return item.str; }).join(' ') + ' ';
+          }
+          if (!fullText.trim()) {
+            addMessage('ai', 'PDF sem texto legivel. Pode ser um PDF escaneado (so imagem).', 'error');
+            return;
+          }
+          const truncated = fullText.length > 8000;
+          const text = fullText.slice(0, 8000);
+          const prompt = 'Leia este conteudo extraido do PDF "' + file.name + '" e crie um mapa mental completo resumindo os principais conceitos e topicos. Use o modelo de mapa mais adequado para o conteudo.\n\n=== CONTEUDO DO PDF ===\n' + text + (truncated ? '\n\n[Texto truncado - primeiras paginas]' : '');
+          addMessage('user', '[PDF] ' + file.name + (truncated ? ' (parcial)' : ''));
+          await sendMessage(prompt);
+        } catch (err) {
+          addMessage('ai', 'Erro ao ler PDF: ' + err.message, 'error');
+        }
+      });
+    }
 
     updateProviderTag();
 
