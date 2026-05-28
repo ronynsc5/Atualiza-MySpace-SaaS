@@ -770,9 +770,22 @@
           ok = r.ok;
           const d = await r.json().catch(() => ({}));
           errMsg = (d.message) || 'Erro desconhecido';
+        } else if (p.type === 'anthropic') {
+          const r = await fetch('https://api.anthropic.com/v1/messages', { method: 'POST', headers: { 'x-api-key': key, 'anthropic-version': '2023-06-01', 'Content-Type': 'application/json' }, body: JSON.stringify({ model, max_tokens: 3, messages: [{ role: 'user', content: 'OK' }] }) });
+          const d = await r.json().catch(() => ({}));
+          ok = r.ok && !!d.content;
+          errMsg = (d.error && d.error.message) || 'Erro desconhecido';
         } else {
+          // openai-compat: groq, openai, openrouter, deepseek, mistral, custom
+          const ENDPOINTS = {
+            groq:       'https://api.groq.com/openai/v1/chat/completions',
+            openai:     'https://api.openai.com/v1/chat/completions',
+            openrouter: 'https://openrouter.ai/api/v1/chat/completions',
+            deepseek:   'https://api.deepseek.com/v1/chat/completions',
+            mistral:    'https://api.mistral.ai/v1/chat/completions',
+          };
           const endpointEl = document.getElementById('ms-endpoint-' + p.id);
-          const ep = (endpointEl && endpointEl.value.trim()) || p.endpoint || 'https://api.openai.com/v1/chat/completions';
+          const ep = (endpointEl && endpointEl.value.trim()) || ENDPOINTS[p.id] || p.endpoint || 'https://api.openai.com/v1/chat/completions';
           const r = await fetch(ep, { method: 'POST', headers: { Authorization: 'Bearer ' + key, 'Content-Type': 'application/json' }, body: JSON.stringify({ model, messages: [{ role: 'user', content: 'OK' }], max_tokens: 3 }) });
           const d = await r.json().catch(() => ({}));
           ok = r.ok && (!!d.choices || !!d.content);
