@@ -230,12 +230,50 @@
   // ── APPLY ACTIONS ──────────────────────────────────────────────
   function applyActions(actions) {
     if (!Array.isArray(actions)) return;
+
+    // ── Previne nós duplicados e posições sobrepostas ──
+    const createdTitles = new Set();
+    const usedPositions = []; // {x, y} já ocupados nesta execução
+
+    function posConflicts(x, y) {
+      return usedPositions.some(p => Math.abs(p.x - x) < 220 && Math.abs(p.y - y) < 140);
+    }
+    function findFreePos(x, y) {
+      let nx = x, ny = y, tries = 0;
+      while (posConflicts(nx, ny) && tries < 20) {
+        nx += 250; if (nx > 2200) { nx = 100; ny += 180; }
+        tries++;
+      }
+      return { x: nx, y: ny };
+    }
+
+    // Mapeia títulos existentes no canvas pra evitar duplicatas
+    try {
+      const snap = window.MySpace && typeof window.MySpace.snapshot === 'function'
+        ? window.MySpace.snapshot() : null;
+      if (snap && snap.nodes) {
+        snap.nodes.forEach(n => { if (n.title) createdTitles.add(n.title.trim().toLowerCase()); });
+        snap.nodes.forEach(n => { if (n.x !== undefined) usedPositions.push({x: n.x, y: n.y}); });
+      }
+    } catch(_) {}
+
+    // Mapeia IDs criados nesta execução (título → id) para conexões usarem
+    const createdIds = {};
+
     for (const action of actions) {
       try {
         if (action.type === 'create_node') {
-          const x = action.x !== undefined ? action.x : (200 + Math.random() * 600);
-          const y = action.y !== undefined ? action.y : (150 + Math.random() * 400);
-          window.MySpace_addNode(action.title || 'Novo no', action.note || '', x, y, action.node_type || 'card');
+          const titleKey = (action.title || '').trim().toLowerCase();
+          if (createdTitles.has(titleKey)) continue; // skip duplicata
+          createdTitles.add(titleKey);
+
+          const rawX = action.x !== undefined ? action.x : (200 + Math.random() * 600);
+          const rawY = action.y !== undefined ? action.y : (150 + Math.random() * 400);
+          const {x, y} = findFreePos(rawX, rawY);
+          usedPositions.push({x, y});
+
+          const id = window.MySpace_addNode(action.title || 'Novo no', action.note || '', x, y, action.node_type || 'card');
+          if (id) createdIds[action.title] = id;
         } else if (action.type === 'update_node') {
           const patch = {};
           if (action.title !== undefined) patch.title = action.title;
@@ -253,14 +291,32 @@
         }
       } catch (e) { console.warn('[AI] action error:', action.type, e); }
     }
+    // Pega conexões já existentes pra não duplicar
+    const existingConns = new Set();
+    try {
+      const snap = window.MySpace && typeof window.MySpace.snapshot === 'function'
+        ? window.MySpace.snapshot() : null;
+      if (snap && snap.connections) {
+        snap.connections.forEach(c => existingConns.add(c.from + '→' + c.to));
+      }
+    } catch(_) {}
+
     for (const action of actions) {
       try {
         if (action.type === 'create_connection') {
           if (!action.from || !action.to) continue;
+          const key = action.from + '→' + action.to;
+          const keyRev = action.to + '→' + action.from;
+          if (existingConns.has(key) || existingConns.has(keyRev)) continue; // skip duplicata
+          existingConns.add(key);
           window.MySpace_addConnection(action.from, action.to, action.style || 'curved', action.color || null);
         }
       } catch (e) { console.warn('[AI] connection error:', action, e); }
     }
+
+    // Redesenha o canvas depois de tudo
+    try { if (typeof draw === 'function') draw(); } catch(_) {}
+    try { if (typeof triggerSave === 'function') triggerSave(); } catch(_) {}
   }
 
   // ── STYLES ────────────────────────────────────────────────────
