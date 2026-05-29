@@ -186,13 +186,17 @@
       keyPlaceholder: 'http://localhost:11434',
       type: 'ollama',
       models: [
-        { id: 'llama3.2', name: 'Llama 3.2', default: true },
+        { id: 'llama3:latest', name: 'Llama 3', default: true },
+        { id: 'llama3.2', name: 'Llama 3.2' },
         { id: 'llama3.1', name: 'Llama 3.1' },
+        { id: 'deepseek-r1:8b', name: 'DeepSeek R1 8B' },
+        { id: 'deepseek-r1:14b', name: 'DeepSeek R1 14B' },
+        { id: 'deepseek-coder:latest', name: 'DeepSeek Coder' },
         { id: 'mistral', name: 'Mistral 7B' },
-        { id: 'phi4', name: 'Phi 4 (Microsoft)' },
+        { id: 'phi4', name: 'Phi 4' },
         { id: 'qwen2.5', name: 'Qwen 2.5' },
-        { id: 'deepseek-r1', name: 'DeepSeek R1' },
         { id: 'gemma3', name: 'Gemma 3' },
+        { id: 'llava:latest', name: 'LLaVA (visão)' },
       ]
     },
     // ── LM STUDIO (local) ──
