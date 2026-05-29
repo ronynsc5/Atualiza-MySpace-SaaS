@@ -171,19 +171,27 @@
     $('mm-auth-wall')?.classList.add('mm-hidden');
     $('mm-userbar')?.classList.add('show');
     const email = $('mm-user-email'); if (email) email.textContent = user.email || '';
-    if (!sessionStorage.getItem('myspace-autoloaded')) {
-      await autoLoadProject(user);
-    }
+    await autoLoadProject(user);
   }
 
   async function autoLoadProject(user){
     if (!sb || !user) return;
-    if (sessionStorage.getItem('myspace-autoloaded')) return;
-    sessionStorage.setItem('myspace-autoloaded', '1');
+    const LOCK_KEY = 'myspace-loading-lock';
+    if (localStorage.getItem(LOCK_KEY)) {
+      localStorage.removeItem(LOCK_KEY);
+      return;
+    }
     try {
       const { data, error } = await sb.from('projects').select('payload,updated_at').eq('user_id', user.id).eq('name', PROJECT_NAME).maybeSingle();
       if (error || !data || !data.payload) return;
-      applySnapshot(data.payload);
+      const localRaw = localStorage.getItem('myspace-v2') || localStorage.getItem('myspace-v3');
+      const localData = localRaw ? JSON.parse(localRaw) : null;
+      const cloudTime = new Date(data.updated_at).getTime();
+      const localTime = localData?._savedAt ? new Date(localData._savedAt).getTime() : 0;
+      if (cloudTime > localTime) {
+        localStorage.setItem(LOCK_KEY, '1');
+        applySnapshot(data.payload);
+      }
     } catch(e) {
       console.warn('[MySpace Auth] autoLoadProject falhou:', e);
     }
@@ -288,7 +296,7 @@
     const origSetItem = localStorage.setItem.bind(localStorage);
     localStorage.setItem = function(key, value){
       origSetItem(key, value);
-      if ((key === 'myspace-v2' || key === 'myspace-v3') && sessionStorage.getItem('myspace-autoloaded')) {
+      if (key === 'myspace-v2' || key === 'myspace-v3') {
         scheduleAutoSave();
       }
     };
