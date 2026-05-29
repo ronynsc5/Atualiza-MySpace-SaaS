@@ -167,10 +167,28 @@
     $('mm-userbar')?.classList.remove('show');
     setMsg(`Logado como ${user.email}. Falta ativar o plano.`, 'info');
   }
-  function showApp(user){
+  async function showApp(user){
     $('mm-auth-wall')?.classList.add('mm-hidden');
     $('mm-userbar')?.classList.add('show');
     const email = $('mm-user-email'); if (email) email.textContent = user.email || '';
+    await autoLoadProject(user);
+  }
+
+  async function autoLoadProject(user){
+    if (!sb || !user) return;
+    try {
+      const { data, error } = await sb.from('projects').select('payload,updated_at').eq('user_id', user.id).eq('name', PROJECT_NAME).maybeSingle();
+      if (error || !data || !data.payload) return;
+      const localRaw = localStorage.getItem('myspace-v2') || localStorage.getItem('myspace-v3');
+      const localData = localRaw ? JSON.parse(localRaw) : null;
+      const cloudTime = new Date(data.updated_at).getTime();
+      const localTime = localData?._savedAt ? new Date(localData._savedAt).getTime() : 0;
+      if (cloudTime > localTime) {
+        applySnapshot(data.payload);
+      }
+    } catch(e) {
+      console.warn('[MySpace Auth] autoLoadProject falhou:', e);
+    }
   }
 
   async function cloudSave(){
@@ -179,9 +197,12 @@
     if (!session) return refreshAccess();
     const payload = getSnapshot();
     if (!payload) return alert('Nenhum projeto para salvar.');
+    payload._savedAt = new Date().toISOString();
     const row = { user_id: session.user.id, name: PROJECT_NAME, payload };
     const { error } = await sb.from('projects').upsert(row, { onConflict: 'user_id,name' });
     if (error) return alert('Erro ao salvar na nuvem: ' + error.message);
+    localStorage.setItem('myspace-v2', JSON.stringify(payload));
+    localStorage.setItem('myspace-v3', JSON.stringify(payload));
     alert('Projeto salvo na nuvem.');
   }
   async function cloudLoad(){
