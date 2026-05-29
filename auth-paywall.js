@@ -176,11 +176,6 @@
 
   async function autoLoadProject(user){
     if (!sb || !user) return;
-    const LOCK_KEY = 'myspace-loading-lock';
-    if (localStorage.getItem(LOCK_KEY)) {
-      localStorage.removeItem(LOCK_KEY);
-      return;
-    }
     try {
       const { data, error } = await sb.from('projects').select('payload,updated_at').eq('user_id', user.id).eq('name', PROJECT_NAME).maybeSingle();
       if (error || !data || !data.payload) return;
@@ -188,8 +183,7 @@
       const localData = localRaw ? JSON.parse(localRaw) : null;
       const cloudTime = new Date(data.updated_at).getTime();
       const localTime = localData?._savedAt ? new Date(localData._savedAt).getTime() : 0;
-      if (cloudTime > localTime) {
-        localStorage.setItem(LOCK_KEY, '1');
+      if (cloudTime - localTime > 3000) {
         applySnapshot(data.payload);
       }
     } catch(e) {
