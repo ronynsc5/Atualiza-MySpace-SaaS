@@ -1126,7 +1126,7 @@ function createNode(x, y, type='card') {
     bgOpacity: 1,
     borderColor: BORDER_COLORS[type]||'none',
     borderWidth: 1.5,
-    textColor: '#1a1a18',
+    textColor: (document.documentElement.getAttribute('data-theme')==='dark' || document.body.classList.contains('dark')) ? '#f8fafc' : '#1a1a18',
     textSize: 13,
     noteSize: 11,
     textBold: true,
@@ -1229,7 +1229,9 @@ function luminance(hex){
   return 0.2126*a[0]+0.7152*a[1]+0.0722*a[2];
 }
 function readableTextColor(bg, preferred){
-  const bgLum = luminance(bg);
+  // Se fundo é none/transparente, usa o fundo real do canvas (tema)
+  const effectiveBg = (!bg || bg==='none' || bg==='transparent') ? cssVar('--bg') : bg;
+  const bgLum = luminance(effectiveBg);
   const pr = preferred && preferred!=='none' ? preferred : (bgLum < .45 ? '#f8fafc' : '#1a1a18');
   const c1 = (Math.max(bgLum,luminance(pr))+.05)/(Math.min(bgLum,luminance(pr))+.05);
   if(c1>=3.2) return pr;
