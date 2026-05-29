@@ -5862,7 +5862,7 @@ if(Object.keys(workspaces).length > 1) {
   }
   function normalizeCard(node){
     if(!node || node.type !== 'card') return node;
-    if(!node.cornerRadius || node.cornerRadius < 18) node.cornerRadius = 18;
+    if(!node.cornerRadius) node.cornerRadius = 8;
     if(!node.borderWidth || node.borderWidth < 1.5) node.borderWidth = 1.5;
     if(!node.width || node.width < 180) node.width = 220;
     if(!node.height || node.height < 110) node.height = 132;
