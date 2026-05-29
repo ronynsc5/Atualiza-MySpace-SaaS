@@ -403,16 +403,24 @@
       const colorName = n.color || branchColors[n.id] || colorNames[0];
       const colors = COLOR_MAP[colorName] || COLOR_MAP.azul;
 
+      // Suporta card, folder, note
+      const nodeType = n.type || n.node_type || 'card';
+
       const created = window.MySpace_addNode(
         n.title || 'Sem título',
         n.note || '',
         pos.x, pos.y,
-        'card'
+        nodeType
       );
       if (created) {
-        // Aplica cores e emoji
-        Object.assign(created, colors);
+        // Cores só pra card — folder e note têm cores padrão bonitas
+        if (nodeType === 'card') {
+          Object.assign(created, colors);
+        }
         if (n.emoji) created.emoji = n.emoji;
+        // Tamanho customizado
+        if (n.width) created.width = n.width;
+        if (n.height) created.height = n.height;
         createdMap[n.id] = created.id;
       }
     });
@@ -424,6 +432,7 @@
       return colors.borderColor;
     };
 
+    // Conecta nodes com parent declarado
     nodes.forEach(n => {
       if (!n.parent) return;
       const fromId = createdMap[n.parent];
@@ -432,6 +441,19 @@
         window.MySpace_addConnection(fromId, toId, 'curved', connColor(n.id));
       }
     });
+
+    // Conecta nodes órfãos (sem parent e sem ser raiz) ao nó raiz mais próximo
+    if (roots[0] && createdMap[roots[0]]) {
+      nodes.forEach(n => {
+        if (n.parent) return; // já tem parent
+        if (roots.includes(n.id)) return; // é raiz, não conecta
+        const toId = createdMap[n.id];
+        const fromId = createdMap[roots[0]];
+        if (fromId && toId) {
+          window.MySpace_addConnection(fromId, toId, 'curved', '#94a3b8');
+        }
+      });
+    }
 
     try { if (typeof draw === 'function') draw(); } catch(_) {}
     try { if (typeof triggerSave === 'function') triggerSave(); } catch(_) {}
