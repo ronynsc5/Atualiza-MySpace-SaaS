@@ -171,7 +171,9 @@
     $('mm-auth-wall')?.classList.add('mm-hidden');
     $('mm-userbar')?.classList.add('show');
     const email = $('mm-user-email'); if (email) email.textContent = user.email || '';
-    await autoLoadProject(user);
+    if (!sessionStorage.getItem('myspace-autoloaded')) {
+      await autoLoadProject(user);
+    }
   }
 
   async function autoLoadProject(user){
@@ -209,7 +211,6 @@
     localStorage.setItem('myspace-v3', JSON.stringify(payload));
     alert('Projeto salvo na nuvem.');
   }
-
   async function cloudLoad(){
     if (!sb) return alert('Supabase não configurado.');
     const { data: { session } } = await sb.auth.getSession();
@@ -219,7 +220,6 @@
     if (!data) return alert('Nenhum projeto salvo na nuvem ainda.');
     if (confirm('Carregar projeto da nuvem? O estado local atual será substituído.')) applySnapshot(data.payload);
   }
-
   async function startPayment(){
     if (!sb) return alert('Supabase não configurado.');
     setBusy(true); setMsg('Criando checkout seguro...', 'info');
@@ -292,10 +292,11 @@
       clearTimeout(debounceTimer);
       debounceTimer = setTimeout(autoSave, 2000);
     }
+    // Observa mudancas no localStorage (canvas salva aqui)
     const origSetItem = localStorage.setItem.bind(localStorage);
     localStorage.setItem = function(key, value){
       origSetItem(key, value);
-      if (key === 'myspace-v2' || key === 'myspace-v3') {
+      if ((key === 'myspace-v2' || key === 'myspace-v3') && sessionStorage.getItem('myspace-autoloaded')) {
         scheduleAutoSave();
       }
     };
