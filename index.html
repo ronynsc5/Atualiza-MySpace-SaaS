@@ -5756,7 +5756,7 @@ if(Object.keys(workspaces).length > 1) {
       if(!n || n.__ronyPolished) return;
       n.__ronyPolished = true;
       if(n.type === 'card'){
-        if(!n.cornerRadius || n.cornerRadius < 14) n.cornerRadius = 16;
+        if(!n.cornerRadius) n.cornerRadius = 8;
         if(!n.shadowIntensity || n.shadowIntensity < 1.15) n.shadowIntensity = 1.15;
         if(!n.borderWidth || n.borderWidth < 1.5) n.borderWidth = 1.5;
       }
