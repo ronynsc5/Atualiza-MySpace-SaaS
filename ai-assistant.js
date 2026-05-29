@@ -887,6 +887,26 @@
       return;
     }
 
+    // ── Comandos diretos — sem passar pela IA ──────────────────
+    const cmd = text.trim().toLowerCase();
+    const isDeleteAll = /^(apaga?|delete?|limpa?|clear|remove)\s*(tudo|all|canvas|o canvas|todos?|tudo isso)?$/i.test(cmd) || cmd === 'apaga tudo' || cmd === 'delete tudo' || cmd === 'limpa tudo' || cmd === 'clear all';
+
+    if (isDeleteAll) {
+      const snap = getSnapshot();
+      const allIds = snap && snap.nodes ? snap.nodes.map(n => n.id) : [];
+      if (allIds.length === 0) {
+        addMessage('user', text);
+        addMessage('ai', 'O canvas já está vazio!');
+        return;
+      }
+      addMessage('user', text);
+      allIds.forEach(id => { try { window.MySpace_deleteNode(id); } catch(_) {} });
+      try { if (typeof draw === 'function') draw(); } catch(_) {}
+      try { if (typeof triggerSave === 'function') triggerSave(); } catch(_) {}
+      addMessage('ai', `🗑️ Apaguei ${allIds.length} card(s). Canvas limpo!`, 'action');
+      return;
+    }
+
     addMessage('user', text);
     addTyping();
 
