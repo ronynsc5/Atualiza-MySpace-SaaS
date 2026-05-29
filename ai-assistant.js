@@ -228,6 +228,211 @@
   ];
 
   // ── APPLY ACTIONS ──────────────────────────────────────────────
+
+  // ── PALETA DE CORES ──────────────────────────────────────────
+  const COLOR_MAP = {
+    azul:     { bgColor:'#bfdbfe', borderColor:'#3b82f6', textColor:'#1e3a5f' },
+    verde:    { bgColor:'#d1fae5', borderColor:'#10b981', textColor:'#064e3b' },
+    amarelo:  { bgColor:'#fef3c7', borderColor:'#f59e0b', textColor:'#92400e' },
+    laranja:  { bgColor:'#fed7aa', borderColor:'#f97316', textColor:'#7c2d12' },
+    vermelho: { bgColor:'#fecaca', borderColor:'#ef4444', textColor:'#7f1d1d' },
+    rosa:     { bgColor:'#fbcfe8', borderColor:'#ec4899', textColor:'#831843' },
+    roxo:     { bgColor:'#e9d5ff', borderColor:'#a855f7', textColor:'#4c1d95' },
+    cinza:    { bgColor:'#f1f5f9', borderColor:'#94a3b8', textColor:'#1e293b' },
+    escuro:   { bgColor:'#1e293b', borderColor:'#475569', textColor:'#f1f5f9' },
+  };
+  const CONN_COLORS = ['#3b82f6','#10b981','#f97316','#a855f7','#ef4444','#ec4899','#f59e0b','#06b6d4'];
+
+  // ── MOTOR DE LAYOUT ──────────────────────────────────────────
+  function applyMap(mapData) {
+    if (!mapData || !mapData.nodes) return;
+    const layout = mapData.layout || 'radial';
+    const nodes = mapData.nodes;
+
+    // Monta árvore pai→filhos
+    const children = {};
+    const roots = [];
+    nodes.forEach(n => {
+      children[n.id] = [];
+    });
+    nodes.forEach(n => {
+      if (n.parent && children[n.parent]) {
+        children[n.parent].push(n.id);
+      } else if (!n.parent) {
+        roots.push(n.id);
+      }
+    });
+
+    // Mapeia id → node
+    const byId = {};
+    nodes.forEach(n => byId[n.id] = n);
+
+    // Calcula posições baseado no layout
+    const positions = {};
+
+    if (layout === 'radial') {
+      // Raiz no centro, filhos em círculo, netos em círculo maior
+      const root = roots[0];
+      positions[root] = { x: 700, y: 400 };
+      const lvl1 = children[root] || [];
+      const r1 = Math.max(280, lvl1.length * 80);
+      lvl1.forEach((id, i) => {
+        const angle = (2 * Math.PI * i / lvl1.length) - Math.PI/2;
+        const x = Math.round(700 + r1 * Math.cos(angle));
+        const y = Math.round(400 + r1 * Math.sin(angle));
+        positions[id] = { x, y };
+        const lvl2 = children[id] || [];
+        const r2 = Math.max(200, lvl2.length * 70);
+        lvl2.forEach((sid, j) => {
+          const a2 = angle + (Math.PI * 0.5 * (j - (lvl2.length-1)/2) / Math.max(1, lvl2.length));
+          positions[sid] = {
+            x: Math.round(x + r2 * Math.cos(a2)),
+            y: Math.round(y + r2 * Math.sin(a2))
+          };
+        });
+      });
+
+    } else if (layout === 'tree-right') {
+      // Raiz à esquerda, expande pra direita
+      const root = roots[0];
+      positions[root] = { x: 120, y: 400 };
+      function placeRight(id, depth, yStart, yEnd) {
+        const kids = children[id] || [];
+        if (kids.length === 0) return;
+        const yStep = (yEnd - yStart) / kids.length;
+        kids.forEach((kid, i) => {
+          const x = 120 + depth * 280;
+          const y = Math.round(yStart + yStep * i + yStep/2);
+          positions[kid] = { x, y };
+          placeRight(kid, depth + 1, yStart + yStep*i, yStart + yStep*(i+1));
+        });
+      }
+      placeRight(root, 1, 0, 800);
+
+    } else if (layout === 'tree-down') {
+      // Raiz no topo, expande pra baixo
+      const root = roots[0];
+      positions[root] = { x: 700, y: 80 };
+      function placeDown(id, depth, xStart, xEnd) {
+        const kids = children[id] || [];
+        if (kids.length === 0) return;
+        const xStep = (xEnd - xStart) / kids.length;
+        kids.forEach((kid, i) => {
+          const y = 80 + depth * 200;
+          const x = Math.round(xStart + xStep * i + xStep/2);
+          positions[kid] = { x, y };
+          placeDown(kid, depth + 1, xStart + xStep*i, xStart + xStep*(i+1));
+        });
+      }
+      placeDown(root, 1, 100, 1300);
+
+    } else if (layout === 'timeline') {
+      // Linha esquerda→direita, filhos acima/abaixo
+      const mainLine = [roots[0], ...(children[roots[0]] || [])];
+      const spacing = Math.min(250, 1200 / Math.max(1, mainLine.length));
+      mainLine.forEach((id, i) => {
+        positions[id] = { x: Math.round(120 + i * spacing), y: 400 };
+        const kids = children[id] || [];
+        kids.forEach((kid, j) => {
+          positions[kid] = {
+            x: Math.round(120 + i * spacing),
+            y: j % 2 === 0 ? 200 : 600
+          };
+        });
+      });
+
+    } else if (layout === 'kanban') {
+      // Colunas: cada raiz é uma coluna
+      roots.forEach((rid, col) => {
+        const x = 150 + col * 280;
+        positions[rid] = { x, y: 80 };
+        (children[rid] || []).forEach((kid, row) => {
+          positions[kid] = { x, y: 220 + row * 180 };
+        });
+      });
+
+    } else if (layout === 'swot') {
+      // 4 quadrantes fixos
+      const quadrants = [
+        { x: 350, y: 250 }, // Forças
+        { x: 850, y: 250 }, // Fraquezas
+        { x: 350, y: 550 }, // Oportunidades
+        { x: 850, y: 550 }, // Ameaças
+      ];
+      roots.forEach((rid, i) => {
+        positions[rid] = quadrants[i] || { x: 600 + i*200, y: 400 };
+        (children[rid] || []).forEach((kid, j) => {
+          positions[kid] = {
+            x: (quadrants[i]?.x || 600) + (j%2===0?-150:150),
+            y: (quadrants[i]?.y || 400) + Math.floor(j/2)*120 + 120
+          };
+        });
+      });
+    }
+
+    // Cores por ramo (cada filho do root recebe uma cor diferente)
+    const branchColors = {};
+    const colorNames = Object.keys(COLOR_MAP);
+    if (roots[0]) {
+      (children[roots[0]] || []).forEach((id, i) => {
+        const color = colorNames[i % colorNames.length];
+        branchColors[id] = color;
+        // Propaga a cor pros filhos desse ramo
+        (children[id] || []).forEach(kid => { branchColors[kid] = color; });
+      });
+    }
+
+    // Cria todos os nós
+    const createdMap = {}; // id_temp → id_real
+    const existingTitles = new Set();
+    try {
+      const snap = window.MySpace_getNodes ? window.MySpace_getNodes() : [];
+      snap.forEach(n => existingTitles.add((n.title||'').trim().toLowerCase()));
+    } catch(_) {}
+
+    nodes.forEach(n => {
+      const titleKey = (n.title||'').trim().toLowerCase();
+      if (existingTitles.has(titleKey)) return;
+      existingTitles.add(titleKey);
+
+      const pos = positions[n.id] || { x: 300 + Math.random()*600, y: 300 + Math.random()*300 };
+      const colorName = n.color || branchColors[n.id] || colorNames[0];
+      const colors = COLOR_MAP[colorName] || COLOR_MAP.azul;
+
+      const created = window.MySpace_addNode(
+        n.title || 'Sem título',
+        n.note || '',
+        pos.x, pos.y,
+        'card'
+      );
+      if (created) {
+        // Aplica cores e emoji
+        Object.assign(created, colors);
+        if (n.emoji) created.emoji = n.emoji;
+        createdMap[n.id] = created.id;
+      }
+    });
+
+    // Cria conexões automaticamente baseado em parent
+    const connColor = (id) => {
+      const colorName = branchColors[id] || 'azul';
+      const colors = COLOR_MAP[colorName] || COLOR_MAP.azul;
+      return colors.borderColor;
+    };
+
+    nodes.forEach(n => {
+      if (!n.parent) return;
+      const fromId = createdMap[n.parent];
+      const toId = createdMap[n.id];
+      if (fromId && toId) {
+        window.MySpace_addConnection(fromId, toId, 'curved', connColor(n.id));
+      }
+    });
+
+    try { if (typeof draw === 'function') draw(); } catch(_) {}
+    try { if (typeof triggerSave === 'function') triggerSave(); } catch(_) {}
+  }
+
   function applyActions(actions) {
     if (!Array.isArray(actions)) return;
 
@@ -680,6 +885,12 @@
       chat.push({ role: 'assistant', content: reply });
       saveChat(chat);
 
+      // Novo formato: map com layout automático
+      if (data.map && data.map.nodes) {
+        applyMap(data.map);
+        addMessage('ai', 'Mapa criado com ' + data.map.nodes.length + ' cards!', 'action');
+      }
+      // Formato antigo: actions individuais
       if (data.actions && Array.isArray(data.actions) && data.actions.length > 0) {
         applyActions(data.actions);
         const count = data.actions.length;
