@@ -1232,10 +1232,15 @@ function readableTextColor(bg, preferred){
   // Se fundo é none/transparente, usa o fundo real do canvas (tema)
   const effectiveBg = (!bg || bg==='none' || bg==='transparent') ? cssVar('--bg') : bg;
   const bgLum = luminance(effectiveBg);
-  const pr = preferred && preferred!=='none' ? preferred : (bgLum < .45 ? '#f8fafc' : '#1a1a18');
-  const c1 = (Math.max(bgLum,luminance(pr))+.05)/(Math.min(bgLum,luminance(pr))+.05);
-  if(c1>=3.2) return pr;
-  return bgLum < .45 ? '#ffffff' : '#111827';
+  // Sempre preto ou branco puro baseado na luminância do fundo
+  // Threshold 0.45: fundos escuros → texto branco, fundos claros → texto preto
+  const autoColor = bgLum < 0.45 ? '#ffffff' : '#111827';
+  // Se tem cor preferida, verifica se tem contraste suficiente (4.5:1 WCAG AA)
+  if (preferred && preferred !== 'none' && preferred !== '#1a1a18' && preferred !== '#f8fafc') {
+    const c1 = (Math.max(bgLum, luminance(preferred)) + 0.05) / (Math.min(bgLum, luminance(preferred)) + 0.05);
+    if (c1 >= 4.5) return preferred;
+  }
+  return autoColor;
 }
 
 function colorWithAlphaForFill(color, alpha){
