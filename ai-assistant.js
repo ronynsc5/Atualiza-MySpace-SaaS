@@ -824,12 +824,24 @@
     const row = document.createElement('div');
     row.className = 'ms-ai-msg-row ai';
     row.id = 'ms-ai-typing';
-    row.innerHTML = `<div class="ms-ai-avatar ai">🤖</div><div class="ms-ai-bubble ai"><div class="ms-ai-typing"><span></span><span></span><span></span></div></div>`;
+    row.innerHTML = `<div class="ms-ai-avatar ai">🤖</div><div class="ms-ai-bubble ai"><div class="ms-ai-typing"><span></span><span></span><span></span></div><div id="ms-ai-typing-info" style="font-size:10px;color:var(--text3);margin-top:4px;">Pensando...</div></div>`;
     msgs.appendChild(row);
     msgs.scrollTop = msgs.scrollHeight;
+    // Contador de tempo — importante pro DeepSeek R1 que é lento
+    let secs = 0;
+    window._typingTimer = setInterval(() => {
+      secs++;
+      const info = document.getElementById('ms-ai-typing-info');
+      if (!info) { clearInterval(window._typingTimer); return; }
+      if (secs < 10) info.textContent = 'Pensando...';
+      else if (secs < 30) info.textContent = `Processando... ${secs}s`;
+      else if (secs < 60) info.textContent = `⏳ Modelo pesado, aguarde... ${secs}s`;
+      else info.textContent = `⏳ Isso pode demorar com modelos locais... ${secs}s`;
+    }, 1000);
   }
 
   function removeTyping() {
+    clearInterval(window._typingTimer);
     const el = document.getElementById('ms-ai-typing');
     if (el) el.remove();
   }
@@ -932,9 +944,12 @@
           data = parseLocalResponse(rawText, activeLocal + ' / ' + model);
         } else {
           // Ollama nativo
+          const ollamaCtrl = new AbortController();
+          const ollamaTimeout = setTimeout(() => ollamaCtrl.abort(), 180000); // 3min timeout
           localRes = await fetch(baseUrl + '/api/chat', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
+            signal: ollamaCtrl.signal,
             body: JSON.stringify({
               model,
               messages: [
@@ -944,6 +959,7 @@
               stream: false
             })
           });
+          clearTimeout(ollamaTimeout);
           localData = await localRes.json().catch(() => ({}));
           const rawText = localData?.message?.content || '';
           data = parseLocalResponse(rawText, activeLocal + ' / ' + model);
