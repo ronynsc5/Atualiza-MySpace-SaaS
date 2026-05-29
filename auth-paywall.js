@@ -57,9 +57,15 @@
   }
   function applySnapshot(payload){
     if (!payload || typeof payload !== 'object') throw new Error('Projeto inválido');
-    localStorage.setItem('myspace-v2', JSON.stringify(payload));
-    localStorage.setItem('myspace-v3', JSON.stringify(payload));
-    location.reload();
+    const json = JSON.stringify(payload);
+    localStorage.setItem('myspace-v2', json);
+    localStorage.setItem('myspace-v3', json);
+    if (typeof window.loadSave === 'function') {
+      window.loadSave();
+      if (typeof window.draw === 'function') window.draw();
+    } else {
+      location.reload();
+    }
   }
 
   function injectUi(){
