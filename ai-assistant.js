@@ -417,6 +417,14 @@
         if (nodeType === 'card') {
           Object.assign(created, colors);
         }
+        // Garante contraste no tema escuro
+        const isDark = document.documentElement.getAttribute('data-theme')==='dark' ||
+                       document.body.classList.contains('dark') ||
+                       getComputedStyle(document.body).getPropertyValue('--bg').trim().startsWith('#1') ||
+                       getComputedStyle(document.body).getPropertyValue('--bg').trim().startsWith('#0');
+        if (isDark && (!created.textColor || created.textColor === '#1a1a18')) {
+          created.textColor = '#f8fafc';
+        }
         if (n.emoji) created.emoji = n.emoji;
         // Tamanho customizado
         if (n.width) created.width = n.width;
