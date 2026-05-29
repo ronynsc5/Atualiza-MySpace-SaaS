@@ -889,7 +889,7 @@
 
     // ── Comandos diretos — sem passar pela IA ──────────────────
     const cmd = text.trim().toLowerCase();
-    const isDeleteAll = /^(apaga?|delete?|limpa?|clear|remove)\s*(tudo|all|canvas|o canvas|todos?|tudo isso)?$/i.test(cmd) || cmd === 'apaga tudo' || cmd === 'delete tudo' || cmd === 'limpa tudo' || cmd === 'clear all';
+    const isDeleteAll = /(apaga?|delete?|limpa?|clear|wipe)\s*(tudo|all|canvas|tudo isso|por favor)?/i.test(cmd) && !cmd.includes('criar') && !cmd.includes('mapa') && !cmd.includes('cria');
 
     if (isDeleteAll) {
       const snap = getSnapshot();
