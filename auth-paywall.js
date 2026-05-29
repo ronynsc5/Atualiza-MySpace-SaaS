@@ -194,6 +194,7 @@
       console.warn('[MySpace Auth] autoLoadProject falhou:', e);
     }
   }
+
   async function cloudSave(){
     if (!sb) return alert('Supabase não configurado.');
     const { data: { session } } = await sb.auth.getSession();
@@ -208,6 +209,7 @@
     localStorage.setItem('myspace-v3', JSON.stringify(payload));
     alert('Projeto salvo na nuvem.');
   }
+
   async function cloudLoad(){
     if (!sb) return alert('Supabase não configurado.');
     const { data: { session } } = await sb.auth.getSession();
@@ -217,6 +219,7 @@
     if (!data) return alert('Nenhum projeto salvo na nuvem ainda.');
     if (confirm('Carregar projeto da nuvem? O estado local atual será substituído.')) applySnapshot(data.payload);
   }
+
   async function startPayment(){
     if (!sb) return alert('Supabase não configurado.');
     setBusy(true); setMsg('Criando checkout seguro...', 'info');
@@ -270,12 +273,40 @@
     $('mm-logout').addEventListener('click', async () => { if (sb) await sb.auth.signOut(); showLogin(); });
   }
 
+  async function autoSave(){
+    if (!sb) return;
+    const { data: { session } } = await sb.auth.getSession();
+    if (!session) return;
+    const payload = getSnapshot();
+    if (!payload) return;
+    payload._savedAt = new Date().toISOString();
+    const row = { user_id: session.user.id, name: PROJECT_NAME, payload };
+    await sb.from('projects').upsert(row, { onConflict: 'user_id,name' });
+    localStorage.setItem('myspace-v2', JSON.stringify(payload));
+    localStorage.setItem('myspace-v3', JSON.stringify(payload));
+  }
+
+  function startAutoSave(){
+    let debounceTimer = null;
+    function scheduleAutoSave(){
+      clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(autoSave, 2000);
+    }
+    const origSetItem = localStorage.setItem.bind(localStorage);
+    localStorage.setItem = function(key, value){
+      origSetItem(key, value);
+      if (key === 'myspace-v2' || key === 'myspace-v3') {
+        scheduleAutoSave();
+      }
+    };
+  }
+
   document.addEventListener('DOMContentLoaded', async () => {
     injectUi(); wire();
     if (!sb) return showLogin();
     sb.auth.onAuthStateChange((event, session) => {
       if (event === 'INITIAL_SESSION') {
-        if (session) refreshAccess();
+        if (session) { refreshAccess(); startAutoSave(); }
         else showLogin();
       } else if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
         refreshAccess();
