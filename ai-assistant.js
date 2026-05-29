@@ -920,8 +920,36 @@
         const model = models[activeLocal] || (activeLocal === 'lmstudio' ? 'local-model' : 'llama3.2');
         const isLMStudio = activeLocal === 'lmstudio' || baseUrl.includes('1234');
 
-        // Monta system prompt básico pra chamada local
-        const systemPrompt = `Voce e a IA do MySpace. Responda em JSON: {"reply":"mensagem","actions":[...]} ou texto simples.`;
+        // System prompt completo — mesmo do proxy
+        const snap = getSnapshot();
+        const nodesInfo = JSON.stringify((snap && snap.nodes ? snap.nodes.map(n => ({id:n.id,title:n.title,x:Math.round(n.x),y:Math.round(n.y)})) : []), null, 0);
+        const connsInfo = JSON.stringify((snap && snap.connections ? snap.connections.map(c => ({from:c.from,to:c.to})) : []), null, 0);
+        const systemPrompt = `Voce e a IA do MySpace. Cria mapas mentais organizados e bonitos.
+
+ESTADO ATUAL DO MAPA:
+NOS EXISTENTES (IDs reais — use para editar/deletar/conectar):
+${nodesInfo}
+
+CONEXOES EXISTENTES:
+${connsInfo}
+
+NOVO FORMATO DE MAPA — use quando criar mapa novo:
+{"reply":"Mensagem","map":{"layout":"radial","nodes":[{"id":"c","title":"Centro","note":"Descricao","emoji":"🎯","color":"azul"},{"id":"a","title":"Filho","note":"Descricao","emoji":"📌","color":"verde","parent":"c"}]}}
+
+LAYOUTS: radial | tree-right | tree-down | timeline | kanban | swot
+CORES: azul | verde | amarelo | laranja | vermelho | rosa | roxo | cinza | escuro
+
+ACOES DIRETAS (editar nos existentes):
+{"reply":"mensagem","actions":[{"type":"update_node","id":"ID_REAL","title":"...","note":"...","emoji":"...","bgColor":"#hex","borderColor":"#hex","textColor":"#hex"},{"type":"delete_node","id":"ID_REAL"},{"type":"create_connection","from":"ID1","to":"ID2","style":"curved","color":"#hex"}]}
+
+REGRAS:
+- Minimo 10 nos para mapas novos
+- Todo no DEVE ter "note" com conteudo real
+- Cores diferentes por categoria
+- Conexoes automaticas via campo "parent"
+- NUNCA invente IDs — use so os da lista acima
+- Responda SEMPRE em portugues do Brasil
+- JSON puro sem markdown`;
 
         let localRes, localData;
         if (isLMStudio) {
