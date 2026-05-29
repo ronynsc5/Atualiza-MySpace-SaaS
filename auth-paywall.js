@@ -176,6 +176,7 @@
 
   async function autoLoadProject(user){
     if (!sb || !user) return;
+    if (sessionStorage.getItem('myspace-autoloaded')) return;
     try {
       const { data, error } = await sb.from('projects').select('payload,updated_at').eq('user_id', user.id).eq('name', PROJECT_NAME).maybeSingle();
       if (error || !data || !data.payload) return;
@@ -184,13 +185,15 @@
       const cloudTime = new Date(data.updated_at).getTime();
       const localTime = localData?._savedAt ? new Date(localData._savedAt).getTime() : 0;
       if (cloudTime > localTime) {
+        sessionStorage.setItem('myspace-autoloaded', '1');
         applySnapshot(data.payload);
+      } else {
+        sessionStorage.setItem('myspace-autoloaded', '1');
       }
     } catch(e) {
       console.warn('[MySpace Auth] autoLoadProject falhou:', e);
     }
   }
-
   async function cloudSave(){
     if (!sb) return alert('Supabase não configurado.');
     const { data: { session } } = await sb.auth.getSession();
