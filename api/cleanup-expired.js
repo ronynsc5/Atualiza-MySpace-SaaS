@@ -8,7 +8,7 @@ export default async function handler(req, res) {
 
     const cutoff = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
     const headers = { apikey: serviceKey, Authorization: `Bearer ${serviceKey}`, 'Content-Type': 'application/json' };
-    const profResp = await fetch(`${supabaseUrl}/rest/v1/profiles?select=id,current_period_end,subscription_status&current_period_end=lt.${encodeURIComponent(cutoff)}`, { headers });
+    const profResp = await fetch(`${supabaseUrl}/rest/v1/profiles?select=id,current_period_end,subscription_status&current_period_end=lt.${encodeURIComponent(cutoff)}&subscription_status=in.(inactive,past_due,canceled)`, { headers });
     const profiles = await profResp.json().catch(() => []);
     if (!profResp.ok) return res.status(500).json({ error: 'Falha ao buscar perfis expirados.', details: profiles });
 
