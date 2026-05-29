@@ -830,7 +830,38 @@
     if (el) el.remove();
   }
 
-  async function sendMessage(text) {
+  // ── Parser de resposta local (Ollama/LM Studio) ──────────────
+  function parseLocalResponse(rawText, provider) {
+    let reply = rawText.trim();
+    let actions = null;
+    let mapData = null;
+
+    try {
+      let clean = rawText.replace(/^```(?:json)?\s*/im, '').replace(/```\s*$/m, '').trim();
+      if (!clean.startsWith('{')) {
+        const match = clean.match(/\{[\s\S]*\}/);
+        if (match) clean = match[0];
+      }
+      if (clean.startsWith('{')) {
+        const parsed = JSON.parse(clean);
+        if (parsed.reply) reply = String(parsed.reply);
+        if (Array.isArray(parsed.actions)) actions = parsed.actions;
+        if (parsed.map && parsed.map.nodes) mapData = parsed.map;
+      }
+    } catch(_) {}
+
+    // Nunca mostra JSON cru
+    if (reply.trimStart().startsWith('{')) {
+      try {
+        const p = JSON.parse(reply);
+        if (p.reply) reply = String(p.reply);
+      } catch(_) { reply = 'Pronto!'; }
+    }
+
+    return { text: reply, actions, map: mapData, provider };
+  }
+
+    async function sendMessage(text) {
     if (!text.trim()) return;
     const s = getSettings();
     const keys = s.keys || {};
@@ -853,29 +884,93 @@
     chat.push({ role: 'user', content: text });
 
     try {
-      const res = await fetch('/api/ai-proxy', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          keys: s.keys || {},
-          models: s.models || {},
-          endpoints: s.endpoints || {},
-          prompt: text,
-          payload: snapshot,
-          history: chat.slice(-10)
-        })
+      // ── Detecta se deve chamar Ollama/LM Studio diretamente ──
+      const localProviders = ['ollama', 'lmstudio'];
+      const keys = s.keys || {};
+      const models = s.models || {};
+      const endpoints = s.endpoints || {};
+
+      // Acha o primeiro provider local ativo
+      const activeLocal = localProviders.find(pid => {
+        const url = keys[pid] || endpoints[pid];
+        return url && (url.includes('localhost') || url.includes('127.0.0.1') || url.includes('0.0.0.0'));
       });
 
-      const data = await res.json().catch(() => ({}));
-      removeTyping();
+      let data = {};
 
-      if (!res.ok) {
-        addMessage('ai', '❌ ' + (data.error || 'Erro ao chamar a IA.'), 'error');
-        return;
+      if (activeLocal) {
+        // ── Chamada direta ao Ollama/LM Studio (sem Vercel) ──
+        const baseUrl = (keys[activeLocal] || endpoints[activeLocal] || 'http://localhost:11434').replace(/\/$/, '');
+        const model = models[activeLocal] || (activeLocal === 'lmstudio' ? 'local-model' : 'llama3.2');
+        const isLMStudio = activeLocal === 'lmstudio' || baseUrl.includes('1234');
+
+        // Monta system prompt básico pra chamada local
+        const systemPrompt = `Voce e a IA do MySpace. Responda em JSON: {"reply":"mensagem","actions":[...]} ou texto simples.`;
+
+        let localRes, localData;
+        if (isLMStudio) {
+          // LM Studio usa API OpenAI-compat
+          localRes = await fetch(baseUrl + '/v1/chat/completions', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer lm-studio' },
+            body: JSON.stringify({
+              model,
+              messages: [
+                { role: 'system', content: systemPrompt },
+                ...chat.slice(-6),
+              ],
+              max_tokens: 2000,
+              stream: false
+            })
+          });
+          localData = await localRes.json().catch(() => ({}));
+          const rawText = localData?.choices?.[0]?.message?.content || '';
+          data = parseLocalResponse(rawText, activeLocal + ' / ' + model);
+        } else {
+          // Ollama nativo
+          localRes = await fetch(baseUrl + '/api/chat', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              model,
+              messages: [
+                { role: 'system', content: systemPrompt },
+                ...chat.slice(-6),
+              ],
+              stream: false
+            })
+          });
+          localData = await localRes.json().catch(() => ({}));
+          const rawText = localData?.message?.content || '';
+          data = parseLocalResponse(rawText, activeLocal + ' / ' + model);
+        }
+
+      } else {
+        // ── Chamada normal via Vercel proxy ──
+        const res = await fetch('/api/ai-proxy', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            keys,
+            models,
+            endpoints,
+            prompt: text,
+            payload: snapshot,
+            history: chat.slice(-10)
+          })
+        });
+        data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          removeTyping();
+          addMessage('ai', '❌ ' + (data.error || 'Erro ao chamar a IA.'), 'error');
+          return;
+        }
       }
 
-      const reply = data.text || '';
-      addMessage('ai', reply);
+      removeTyping();
+
+      const reply = data.text || data.reply || '';
+      if (reply) addMessage('ai', reply);
 
       if (data.provider) {
         const label = document.getElementById('ms-ai-status-label');
@@ -972,10 +1067,27 @@
           ok = r.ok && !!d.candidates;
           errMsg = (d.error && d.error.message) || 'Erro desconhecido';
         } else if (p.type === 'ollama') {
-          const base = key || 'http://localhost:11434';
-          const r = await fetch(base + '/api/tags');
-          ok = r.ok;
-          errMsg = 'Ollama nao esta rodando em ' + base;
+          const base = (key || (p.id === 'lmstudio' ? 'http://localhost:1234' : 'http://localhost:11434')).replace(/\/+$/, '');
+          const isLMStudio = p.id === 'lmstudio' || base.includes('1234');
+          try {
+            if (isLMStudio) {
+              const r = await fetch(base + '/v1/models', { headers: { 'Authorization': 'Bearer lm-studio' } });
+              ok = r.ok;
+              errMsg = ok ? 'LM Studio conectado!' : 'LM Studio não está rodando em ' + base;
+            } else {
+              const r = await fetch(base + '/api/tags');
+              ok = r.ok;
+              if (ok) {
+                const d = await r.json().catch(() => ({}));
+                errMsg = d?.models?.length ? d.models.length + ' modelo(s) disponível(is)' : 'Ollama conectado!';
+              } else {
+                errMsg = 'Ollama não está rodando em ' + base + '. Execute: ollama serve';
+              }
+            }
+          } catch(e) {
+            ok = false;
+            errMsg = 'Não foi possível conectar. Verifique se o Ollama está rodando.';
+          }
         } else if (p.type === 'cohere') {
           const r = await fetch('https://api.cohere.com/v1/chat', { method: 'POST', headers: { Authorization: 'Bearer ' + key, 'Content-Type': 'application/json' }, body: JSON.stringify({ model, message: 'OK', max_tokens: 3 }) });
           ok = r.ok;
