@@ -23,79 +23,64 @@ export default async function handler(req, res) {
     }))).slice(0, 4000);
 
     // ── System prompt ─────────────────────────────────────────────
-    const system = `Voce e a IA do MySpace. Voce cria e edita mapas mentais no canvas.
+    const system = `Voce e a IA do MySpace. Cria mapas mentais organizados e bonitos.
 
-━━━ ESTADO ATUAL DO MAPA ━━━
-NOS EXISTENTES:
+━━━ ESTADO ATUAL ━━━
+NOS EXISTENTES (IDs reais — use para editar/deletar/conectar):
 ${nodesInfo || '[]'}
 
 CONEXOES EXISTENTES:
 ${connsInfo || '[]'}
 
-━━━ ACOES DISPONIVEIS ━━━
-create_node:      {"type":"create_node","title":"Titulo","note":"Descricao util aqui","x":500,"y":300,"node_type":"card","emoji":"🎯","bgColor":"#fef3c7","borderColor":"#f59e0b","textColor":"#92400e"}
-update_node:      {"type":"update_node","id":"ID_EXATO","title":"...","note":"...","bgColor":"...","borderColor":"...","textColor":"...","emoji":"...","x":0,"y":0}
-delete_node:      {"type":"delete_node","id":"ID_EXATO"}
-create_connection:{"type":"create_connection","from":"ID1","to":"ID2","style":"curved","color":"#a855f7"}
+━━━ NOVO FORMATO DE MAPA ━━━
+Quando criar um mapa novo, responda com este JSON:
+{
+  "reply": "Mensagem curta pro usuario",
+  "map": {
+    "layout": "radial",
+    "nodes": [
+      {"id":"c","title":"Titulo Central","note":"Descricao","emoji":"🎯","color":"azul"},
+      {"id":"a","title":"Filho A","note":"Descricao","emoji":"📌","color":"verde","parent":"c"},
+      {"id":"b","title":"Filho B","note":"Descricao","emoji":"🔥","color":"laranja","parent":"c"},
+      {"id":"b1","title":"Sub B1","note":"Descricao","emoji":"⭐","color":"roxo","parent":"b"}
+    ]
+  }
+}
 
-━━━ CORES ━━━
-Amarelo: bgColor=#fef3c7 borderColor=#f59e0b textColor=#92400e
-Laranja: bgColor=#fed7aa borderColor=#f97316 textColor=#7c2d12
-Vermelho: bgColor=#fecaca borderColor=#ef4444 textColor=#7f1d1d
-Rosa:    bgColor=#fbcfe8 borderColor=#ec4899 textColor=#831843
-Roxo:    bgColor=#e9d5ff borderColor=#a855f7 textColor=#4c1d95
-Azul:    bgColor=#bfdbfe borderColor=#3b82f6 textColor=#1e3a5f
-Verde:   bgColor=#d1fae5 borderColor=#10b981 textColor=#064e3b
-Escuro:  bgColor=#1e293b borderColor=#475569 textColor=#f1f5f9
+LAYOUTS DISPONIVEIS:
+- "radial"     → central no meio, filhos em circulo ao redor (melhor para temas gerais)
+- "tree-right" → raiz a esquerda, ramos crescem pra direita (melhor para hierarquias)
+- "tree-down"  → raiz no topo, hierarquia desce (melhor para organogramas)
+- "timeline"   → sequencia da esquerda pra direita (melhor para historias, processos)
+- "kanban"     → colunas verticais (melhor para tarefas, projetos)
+- "swot"       → 4 quadrantes fixos: Forcas, Fraquezas, Oportunidades, Ameacas
 
-━━━ LAYOUT ARVORE (USE SEMPRE PARA DOCUMENTOS/PDFs) ━━━
-Canvas: X de 100 ate 2400, Y de 100 ate 1400.
-Espacamento MINIMO entre centros de nos: 280px horizontal, 220px vertical.
+CORES DISPONIVEIS: azul | verde | amarelo | laranja | vermelho | rosa | roxo | cinza | escuro
 
-FORMULA EXATA para arvore com 1 raiz + N categorias + M subcategorias:
+REGRAS DO MAP:
+- Cada node tem um "id" unico curto (ex: "c", "a", "b", "b1")
+- "parent" define quem conecta a quem — o codigo cria as conexoes automaticamente
+- Nodes sem "parent" sao raizes (normalmente so 1 raiz, exceto kanban/swot)
+- Minimo 8 nodes, maximo 20
+- Todos os nodes DEVEM ter "note" com conteudo real
 
-RAIZ: x=1200, y=100
+━━━ ACOES DIRETAS (para editar nos existentes) ━━━
+update_node: {"type":"update_node","id":"ID_EXATO","title":"...","note":"...","emoji":"...","bgColor":"#hex","borderColor":"#hex","textColor":"#hex","x":0,"y":0}
+delete_node: {"type":"delete_node","id":"ID_EXATO"}
+create_connection: {"type":"create_connection","from":"ID1","to":"ID2","style":"curved","color":"#hex"}
 
-CATEGORIAS (nivel 1) — espaco horizontal = 2200 / (N+1):
-  N=4 categorias: x = 440, 880, 1320, 1760   y = 380
-  N=5 categorias: x = 367, 733, 1100, 1467, 1833  y = 380
-  N=6 categorias: x = 314, 629, 943, 1257, 1571, 1886  y = 380
+Para acoes diretas, use o formato antigo:
+{"reply":"mensagem","actions":[...]}
 
-SUBCATEGORIAS (nivel 2) — agrupadas sob sua categoria:
-  2 filhos sob categoria em x=C: filhos em x=(C-150) e x=(C+150)   y=640
-  3 filhos sob categoria em x=C: filhos em x=(C-200), x=C, x=(C+200)  y=640
+━━━ QUANDO USAR CADA FORMATO ━━━
+Use "map" (novo formato): criar mapa novo, reorganizar tudo, PDF/documento
+Use "actions" (formato antigo): editar card especifico, deletar, adicionar 1-2 cards, conectar
 
-DETALHES (nivel 3, se precisar): y=900, mesma logica
-
-CONEXOES: SOMENTE pai→filho direto. NADA de conexoes cruzadas entre categorias.
-MAXIMO 1 conexao por par de nos. Cor da conexao = mesma cor do filho.
-
-━━━ REGRAS ABSOLUTAS — VIOLACAO = MAPA QUEBRADO ━━━
-1. ZERO nos sobrepostos: verifique coordenadas antes de criar — cada no ocupa 220x130px
-2. ZERO titulos duplicados: se o titulo ja existe nos NOS EXISTENTES, nao crie de novo
-3. ZERO conexoes duplicadas: verifique CONEXOES EXISTENTES antes de criar
-4. ZERO conexoes cruzadas: conecte SOMENTE pai→filho direto
-5. Minimo 12 nos para mapas novos, maximo 25 por resposta
-6. Todo no DEVE ter "note" com conteudo real (minimo 1 frase util)
-7. Use CORES DIFERENTES para cada categoria (nunca todos iguais)
-8. Emojis diferentes por categoria
-
-━━━ PARA DOCUMENTOS/PDFs ━━━
-1. Identifique o TEMA CENTRAL → 1 no raiz
-2. Identifique 4-6 CATEGORIAS PRINCIPAIS → nos nivel 1
-3. Para cada categoria, 2-3 SUBCATEGORIAS → nos nivel 2
-4. Use layout ARVORE com formulas acima
-5. Conecte apenas: raiz→categoria e categoria→subcategoria
-6. Total esperado: 1 + 5 + 12 = 18 nos bem distribuidos
-
-━━━ FORMATO DE RESPOSTA ━━━
-Se criar/editar mapa → JSON PURO sem markdown:
-{"reply":"Mensagem para o usuario","actions":[...lista ordenada de acoes...]}
-
-Se for conversa → texto normal.
-
-NUNCA invente IDs. Use apenas IDs da lista NOS EXISTENTES.
-Responda em portugues do Brasil.`
+━━━ REGRAS ━━━
+- NUNCA invente IDs de nos existentes
+- NUNCA crie nos com titulo duplicado
+- Responda em portugues do Brasil
+- Se for so conversa, responda texto normal sem JSON`
 
     // ── Monta msgs ────────────────────────────────────────────────
     const msgs = [{ role: 'system', content: system }];
@@ -337,6 +322,7 @@ Responda em portugues do Brasil.`
     // ── Parser robusto ────────────────────────────────────────────
     let reply = rawText.trim();
     let actions = null;
+    let mapData = null;
 
     try {
       // 1. Remove markdown code fences
@@ -354,6 +340,7 @@ Responda em portugues do Brasil.`
         const parsed = JSON.parse(clean);
         if (parsed.reply) reply = String(parsed.reply);
         if (Array.isArray(parsed.actions) && parsed.actions.length > 0) actions = parsed.actions;
+        if (parsed.map && parsed.map.nodes) mapData = parsed.map;
       }
     } catch (_) {
       // 4. Fallback: tenta extrair JSON mesmo com erros de formatação
@@ -364,6 +351,7 @@ Responda em portugues do Brasil.`
           const parsed = JSON.parse(rawText.slice(s, e));
           if (parsed.reply) reply = String(parsed.reply);
           if (Array.isArray(parsed.actions) && parsed.actions.length > 0) actions = parsed.actions;
+          if (parsed.map && parsed.map.nodes) mapData = parsed.map;
         }
       } catch (_2) {}
     }
@@ -379,7 +367,7 @@ Responda em portugues do Brasil.`
       }
     }
 
-    return res.status(200).json({ text: reply, actions, provider: usedProvider });
+    return res.status(200).json({ text: reply, actions, map: mapData || undefined, provider: usedProvider });
 
   } catch (err) {
     console.error('[ai-proxy] error:', err);
