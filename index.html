@@ -1419,8 +1419,8 @@ function renderShape(c, node, isSel, isMin) {
   if(settings.showShadows && !isMin) {
     const intensity = node.shadowIntensity || 1;
     c.shadowColor = 'rgba(0,0,0,' + (0.1 * intensity) + ')';
-    c.shadowBlur = (14 * intensity) / camera.zoom;
-    c.shadowOffsetY = (3 * intensity) / camera.zoom;
+   c.shadowBlur = 14 * intensity;
+c.shadowOffsetY = 3 * intensity;
   }
   
   // Desenhar forma
