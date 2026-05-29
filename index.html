@@ -1378,7 +1378,7 @@ function drawCardShape(c, node) {
       roundRect(c, x, y, w, h, h/2);
       break;
     case 'rounded':
-      roundRect(c, x, y, w, h, (node.cornerRadius||12)/camera.zoom);
+      roundRect(c, x, y, w, h, (node.cornerRadius||12));
       break;
     case 'square':
       const size = Math.min(w, h);
