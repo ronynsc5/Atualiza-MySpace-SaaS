@@ -503,8 +503,20 @@
           const {x, y} = findFreePos(rawX, rawY);
           usedPositions.push({x, y});
 
-          const id = window.MySpace_addNode(action.title || 'Novo no', action.note || '', x, y, action.node_type || 'card');
-          if (id) createdIds[action.title] = id;
+          // Aceita node_type, ntype, ou inferido do titulo
+          const ntype = action.node_type || action.ntype ||
+            (action.title && /pasta|folder/i.test(action.title) ? 'folder' :
+             action.title && /nota|note|post.it/i.test(action.title) ? 'note' : 'card');
+
+          const created = window.MySpace_addNode(action.title || 'Novo no', action.note || '', x, y, ntype);
+          if (created) {
+            // Aplica cores e emoji se vieram na action
+            if (action.bgColor) created.bgColor = action.bgColor;
+            if (action.borderColor) created.borderColor = action.borderColor;
+            if (action.textColor) created.textColor = action.textColor;
+            if (action.emoji) created.emoji = action.emoji;
+            createdIds[action.title] = created.id || created;
+          }
         } else if (action.type === 'update_node') {
           const patch = {};
           if (action.title !== undefined) patch.title = action.title;
