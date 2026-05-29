@@ -274,104 +274,183 @@
     // Calcula posições baseado no layout
     const positions = {};
 
+    // ── Conta descendentes de cada nó (para espaçamento proporcional) ──
+    function countLeaves(id) {
+      const kids = children[id] || [];
+      if (kids.length === 0) return 1;
+      return kids.reduce((s, k) => s + countLeaves(k), 0);
+    }
+
     if (layout === 'radial') {
-      // Raiz no centro, filhos em círculo, netos em círculo maior
+      // Raiz no centro, ramos em círculo, sub-ramos se afastam do centro
       const root = roots[0];
-      positions[root] = { x: 700, y: 400 };
+      const cx = 700, cy = 420;
+      positions[root] = { x: cx, y: cy };
       const lvl1 = children[root] || [];
-      const r1 = Math.max(280, lvl1.length * 80);
-      lvl1.forEach((id, i) => {
-        const angle = (2 * Math.PI * i / lvl1.length) - Math.PI/2;
-        const x = Math.round(700 + r1 * Math.cos(angle));
-        const y = Math.round(400 + r1 * Math.sin(angle));
+      const totalLeaves = Math.max(1, lvl1.reduce((s,id) => s + countLeaves(id), 0));
+      let angleStart = -Math.PI / 2;
+      const R1 = Math.max(300, lvl1.length * 90);
+
+      lvl1.forEach((id) => {
+        const leaves = countLeaves(id);
+        const sweep = (2 * Math.PI * leaves / totalLeaves);
+        const angle = angleStart + sweep / 2;
+        const x = Math.round(cx + R1 * Math.cos(angle));
+        const y = Math.round(cy + R1 * Math.sin(angle));
         positions[id] = { x, y };
+
         const lvl2 = children[id] || [];
-        const r2 = Math.max(200, lvl2.length * 70);
-        lvl2.forEach((sid, j) => {
-          const a2 = angle + (Math.PI * 0.5 * (j - (lvl2.length-1)/2) / Math.max(1, lvl2.length));
-          positions[sid] = {
-            x: Math.round(x + r2 * Math.cos(a2)),
-            y: Math.round(y + r2 * Math.sin(a2))
-          };
-        });
+        if (lvl2.length > 0) {
+          const R2 = Math.max(220, lvl2.length * 80);
+          let a2start = angle - (Math.PI * 0.45 * (lvl2.length - 1) / Math.max(1, lvl2.length));
+          lvl2.forEach((sid, j) => {
+            const a2 = angle - (Math.PI * 0.45 * ((lvl2.length-1)/2 - j) / Math.max(1, lvl2.length));
+            positions[sid] = {
+              x: Math.round(x + R2 * Math.cos(a2)),
+              y: Math.round(y + R2 * Math.sin(a2))
+            };
+            // Nível 3
+            const lvl3 = children[sid] || [];
+            lvl3.forEach((tid, k) => {
+              const a3 = a2 + (0.3 * (k - (lvl3.length-1)/2));
+              const R3 = 160;
+              positions[tid] = {
+                x: Math.round(positions[sid].x + R3 * Math.cos(a3)),
+                y: Math.round(positions[sid].y + R3 * Math.sin(a3))
+              };
+            });
+          });
+        }
+        angleStart += sweep;
       });
 
     } else if (layout === 'tree-right') {
-      // Raiz à esquerda, expande pra direita
+      // Raiz à esquerda, hierarquia cresce pra direita
       const root = roots[0];
-      positions[root] = { x: 120, y: 400 };
+      const totalLeaves = countLeaves(root);
+      const NODE_H = 160; // altura por folha
+      const NODE_W = 300; // largura por nível
+      const totalH = Math.max(600, totalLeaves * NODE_H);
+
+      positions[root] = { x: 100, y: Math.round(totalH / 2) };
+
       function placeRight(id, depth, yStart, yEnd) {
         const kids = children[id] || [];
         if (kids.length === 0) return;
-        const yStep = (yEnd - yStart) / kids.length;
-        kids.forEach((kid, i) => {
-          const x = 120 + depth * 280;
-          const y = Math.round(yStart + yStep * i + yStep/2);
+        let cursor = yStart;
+        kids.forEach(kid => {
+          const kidLeaves = countLeaves(kid);
+          const kidH = (yEnd - yStart) * kidLeaves / Math.max(1, countLeaves(id));
+          const x = 100 + depth * NODE_W;
+          const y = Math.round(cursor + kidH / 2);
           positions[kid] = { x, y };
-          placeRight(kid, depth + 1, yStart + yStep*i, yStart + yStep*(i+1));
+          placeRight(kid, depth + 1, cursor, cursor + kidH);
+          cursor += kidH;
         });
       }
-      placeRight(root, 1, 0, 800);
+      placeRight(root, 1, 0, totalH);
 
     } else if (layout === 'tree-down') {
-      // Raiz no topo, expande pra baixo
+      // Raiz no topo, hierarquia desce
       const root = roots[0];
-      positions[root] = { x: 700, y: 80 };
+      const totalLeaves = countLeaves(root);
+      const NODE_W = 220;
+      const NODE_H = 200;
+      const totalW = Math.max(800, totalLeaves * NODE_W);
+
+      positions[root] = { x: Math.round(totalW / 2), y: 80 };
+
       function placeDown(id, depth, xStart, xEnd) {
         const kids = children[id] || [];
         if (kids.length === 0) return;
-        const xStep = (xEnd - xStart) / kids.length;
-        kids.forEach((kid, i) => {
-          const y = 80 + depth * 200;
-          const x = Math.round(xStart + xStep * i + xStep/2);
+        let cursor = xStart;
+        kids.forEach(kid => {
+          const kidLeaves = countLeaves(kid);
+          const kidW = (xEnd - xStart) * kidLeaves / Math.max(1, countLeaves(id));
+          const y = 80 + depth * NODE_H;
+          const x = Math.round(cursor + kidW / 2);
           positions[kid] = { x, y };
-          placeDown(kid, depth + 1, xStart + xStep*i, xStart + xStep*(i+1));
+          placeDown(kid, depth + 1, cursor, cursor + kidW);
+          cursor += kidW;
         });
       }
-      placeDown(root, 1, 100, 1300);
+      placeDown(root, 1, 0, totalW);
 
     } else if (layout === 'timeline') {
-      // Linha esquerda→direita, filhos acima/abaixo
-      const mainLine = [roots[0], ...(children[roots[0]] || [])];
-      const spacing = Math.min(250, 1200 / Math.max(1, mainLine.length));
-      mainLine.forEach((id, i) => {
-        positions[id] = { x: Math.round(120 + i * spacing), y: 400 };
+      // Linha do tempo: eventos principais em linha, detalhes acima/abaixo alternados
+      const root = roots[0];
+      const mainEvents = children[root] || [];
+      const allMain = [root, ...mainEvents];
+      const SPACING = Math.max(260, Math.min(320, 1400 / Math.max(1, allMain.length)));
+      const CY = 380;
+
+      allMain.forEach((id, i) => {
+        positions[id] = { x: Math.round(80 + i * SPACING), y: CY };
         const kids = children[id] || [];
         kids.forEach((kid, j) => {
+          // Alterna acima e abaixo
+          const above = j % 2 === 0;
           positions[kid] = {
-            x: Math.round(120 + i * spacing),
-            y: j % 2 === 0 ? 200 : 600
+            x: Math.round(80 + i * SPACING + (j === 0 ? 0 : (j % 2 === 0 ? 60 : -60))),
+            y: above ? CY - 200 - Math.floor(j/2) * 160 : CY + 200 + Math.floor(j/2) * 160
           };
+          // Sub-filhos do detalhe
+          const grandkids = children[kid] || [];
+          grandkids.forEach((gk, k) => {
+            positions[gk] = {
+              x: Math.round(positions[kid].x + (k % 2 === 0 ? 180 : -180)),
+              y: positions[kid].y + (above ? -150 : 150)
+            };
+          });
         });
       });
 
     } else if (layout === 'kanban') {
-      // Colunas: cada raiz é uma coluna
+      // Colunas verticais — cada raiz é uma coluna
+      const colW = Math.max(240, Math.min(300, 1200 / Math.max(1, roots.length)));
       roots.forEach((rid, col) => {
-        const x = 150 + col * 280;
+        const x = 120 + col * (colW + 40);
         positions[rid] = { x, y: 80 };
         (children[rid] || []).forEach((kid, row) => {
-          positions[kid] = { x, y: 220 + row * 180 };
+          positions[kid] = { x, y: 260 + row * 190 };
+          (children[kid] || []).forEach((gk, k) => {
+            positions[gk] = { x: x + (k%2===0?130:-130), y: 260 + row*190 + 160 };
+          });
         });
       });
 
     } else if (layout === 'swot') {
-      // 4 quadrantes fixos
+      // 4 quadrantes com título central
+      const cx = 700, cy = 420;
       const quadrants = [
-        { x: 350, y: 250 }, // Forças
-        { x: 850, y: 250 }, // Fraquezas
-        { x: 350, y: 550 }, // Oportunidades
-        { x: 850, y: 550 }, // Ameaças
+        { x: cx-320, y: cy-220, label:'Forças' },
+        { x: cx+320, y: cy-220, label:'Fraquezas' },
+        { x: cx-320, y: cy+220, label:'Oportunidades' },
+        { x: cx+320, y: cy+220, label:'Ameaças' },
       ];
-      roots.forEach((rid, i) => {
-        positions[rid] = quadrants[i] || { x: 600 + i*200, y: 400 };
+      // Raiz central
+      if (roots[0]) positions[roots[0]] = { x: cx, y: cy };
+      roots.slice(1).forEach((rid, i) => {
+        const q = quadrants[i] || { x: cx + (i%2===0?-300:300), y: cy + (i<2?-200:200) };
+        positions[rid] = { x: q.x, y: q.y };
         (children[rid] || []).forEach((kid, j) => {
-          positions[kid] = {
-            x: (quadrants[i]?.x || 600) + (j%2===0?-150:150),
-            y: (quadrants[i]?.y || 400) + Math.floor(j/2)*120 + 120
-          };
+          const dx = q.x < cx ? -180 : 180;
+          positions[kid] = { x: q.x + dx * (j%2===0?0.5:1), y: q.y + (j*130 - 80) };
         });
       });
+      // Se tem só 1 raiz, distribui filhos nos quadrantes
+      if (roots.length === 1) {
+        const root = roots[0];
+        positions[root] = { x: cx, y: cy };
+        (children[root] || []).forEach((kid, i) => {
+          const q = quadrants[i] || { x: cx + 300, y: cy };
+          positions[kid] = { x: q.x, y: q.y };
+          (children[kid] || []).forEach((gk, j) => {
+            const dx = q.x < cx ? -160 : 160;
+            positions[gk] = { x: q.x + dx, y: q.y + j * 130 - 60 };
+          });
+        });
+      }
     }
 
     // Cores por ramo (cada filho do root recebe uma cor diferente)
