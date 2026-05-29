@@ -179,19 +179,11 @@
   async function autoLoadProject(user){
     if (!sb || !user) return;
     if (sessionStorage.getItem('myspace-autoloaded')) return;
+    sessionStorage.setItem('myspace-autoloaded', '1');
     try {
       const { data, error } = await sb.from('projects').select('payload,updated_at').eq('user_id', user.id).eq('name', PROJECT_NAME).maybeSingle();
       if (error || !data || !data.payload) return;
-      const localRaw = localStorage.getItem('myspace-v2') || localStorage.getItem('myspace-v3');
-      const localData = localRaw ? JSON.parse(localRaw) : null;
-      const cloudTime = new Date(data.updated_at).getTime();
-      const localTime = localData?._savedAt ? new Date(localData._savedAt).getTime() : 0;
-      if (cloudTime > localTime) {
-        sessionStorage.setItem('myspace-autoloaded', '1');
-        applySnapshot(data.payload);
-      } else {
-        sessionStorage.setItem('myspace-autoloaded', '1');
-      }
+      applySnapshot(data.payload);
     } catch(e) {
       console.warn('[MySpace Auth] autoLoadProject falhou:', e);
     }
