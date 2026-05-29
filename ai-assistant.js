@@ -920,50 +920,20 @@
         const model = models[activeLocal] || (activeLocal === 'lmstudio' ? 'local-model' : 'llama3.2');
         const isLMStudio = activeLocal === 'lmstudio' || baseUrl.includes('1234');
 
-        // System prompt completo — mesmo do proxy
+        // System prompt enxuto para modelos locais
         const snap = getSnapshot();
-        const nodesInfo = JSON.stringify((snap && snap.nodes ? snap.nodes.map(n => ({id:n.id,title:n.title,x:Math.round(n.x),y:Math.round(n.y)})) : []), null, 0);
-        const connsInfo = JSON.stringify((snap && snap.connections ? snap.connections.map(c => ({from:c.from,to:c.to})) : []), null, 0);
-        const systemPrompt = `Voce e a IA do MySpace. Cria mapas mentais organizados e bonitos.
+        const nodeIds = snap && snap.nodes ? snap.nodes.map(n => n.id) : [];
+        const nodesShort = snap && snap.nodes ? snap.nodes.map(n => n.id+':'+n.title).join(', ') : 'nenhum';
+        const systemPrompt = `Voce e um assistente JSON. Responda APENAS com JSON valido, sem texto fora do JSON.
 
-ESTADO ATUAL DO MAPA:
-NOS EXISTENTES (IDs reais — use para editar/deletar/conectar):
-${nodesInfo}
+Nos no canvas: ${nodesShort}
 
-CONEXOES EXISTENTES:
-${connsInfo}
+Para apagar tudo: {"reply":"Apagado!","actions":[${nodeIds.map(id=>'{"type":"delete_node","id":"'+id+'"}').join(',')}]}
+Para criar mapa: {"reply":"Criado!","map":{"layout":"radial","nodes":[{"id":"c","title":"TEMA","note":"descricao","emoji":"🎯","color":"azul"},{"id":"a","title":"Topico 1","note":"desc","emoji":"📌","color":"verde","parent":"c"}]}}
+Para conectar: {"reply":"Conectado!","actions":[{"type":"create_connection","from":"ID1","to":"ID2","style":"curved","color":"#3b82f6"}]}
+Para conversar: {"reply":"sua resposta aqui","actions":[]}
 
-NOVO FORMATO DE MAPA — use quando criar mapa novo:
-{"reply":"Mensagem","map":{"layout":"radial","nodes":[{"id":"c","title":"Centro","note":"Descricao","emoji":"🎯","color":"azul"},{"id":"a","title":"Filho","note":"Descricao","emoji":"📌","color":"verde","parent":"c"}]}}
-
-LAYOUTS: radial | tree-right | tree-down | timeline | kanban | swot
-CORES: azul | verde | amarelo | laranja | vermelho | rosa | roxo | cinza | escuro
-
-ACOES DIRETAS (editar nos existentes):
-{"reply":"mensagem","actions":[{"type":"update_node","id":"ID_REAL","title":"...","note":"...","emoji":"...","bgColor":"#hex","borderColor":"#hex","textColor":"#hex"},{"type":"delete_node","id":"ID_REAL"},{"type":"create_connection","from":"ID1","to":"ID2","style":"curved","color":"#hex"}]}
-
-EXEMPLOS DE RESPOSTA CORRETA:
-
-Usuario: "apaga tudo" ou "delete tudo" ou "limpa o canvas"
-Resposta (substitua IDs pelos reais da lista acima):
-{"reply":"Apagando tudo!","actions":[{"type":"delete_node","id":"n1"},{"type":"delete_node","id":"n2"}]}
-
-Usuario: "cria um mapa sobre X"
-Resposta:
-{"reply":"Criando mapa!","map":{"layout":"radial","nodes":[{"id":"c","title":"X","note":"Tema central","emoji":"🎯","color":"azul"},{"id":"a","title":"Topico A","note":"Descricao A","emoji":"📌","color":"verde","parent":"c"},{"id":"b","title":"Topico B","note":"Descricao B","emoji":"🔥","color":"laranja","parent":"c"}]}}
-
-Usuario: "conecta os cards"
-Resposta:
-{"reply":"Conectando!","actions":[{"type":"create_connection","from":"ID_REAL1","to":"ID_REAL2","style":"curved","color":"#3b82f6"}]}
-
-REGRAS ABSOLUTAS:
-- SEMPRE responda com JSON puro — nunca texto simples quando houver acao a fazer
-- NUNCA coloque texto fora do JSON
-- Para apagar tudo: delete_node em TODOS os IDs da lista NOS EXISTENTES
-- Para criar mapa: use formato "map" com nodes e parent
-- Minimo 10 nos para mapas novos
-- NUNCA invente IDs — use so os da lista NOS EXISTENTES
-- Responda em portugues do Brasil`;
+REGRA: JSON puro sempre. Minimo 8 nos para mapas. Portugues do Brasil.`;
 
         let localRes, localData;
         if (isLMStudio) {
