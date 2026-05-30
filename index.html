@@ -5999,7 +5999,6 @@ if(Object.keys(workspaces).length > 1) {
         if(n.type === 'icon' || n.type === 'folder' || n.type === 'note') continue;
         const h = n.minimized ? 44 : n.height;
         ctx.strokeStyle = BLUE; ctx.lineWidth = 1.5/camera.zoom; ctx.setLineDash([5/camera.zoom,4/camera.zoom]);
-      else { roundRect(ctx,n.x,n.y,n.width,h,18); }
         ctx.stroke(); ctx.setLineDash([]);
       }
       ctx.restore();
