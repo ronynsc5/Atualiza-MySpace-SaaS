@@ -1,13 +1,15 @@
 (function(){
 'use strict';
 
-document.addEventListener('DOMContentLoaded', function() {
-
 // ── Viewer de mídia ───────────────────────────────────────────────
+window.addEventListener('load', function(){
 var mvM=document.getElementById('mv-modal'), mvC=document.getElementById('mv-content');
-document.getElementById('mv-close').onclick=function(){mvM.classList.remove('show');mvC.innerHTML='';};
+if(!mvM||!mvC) return;
+var mvClose=document.getElementById('mv-close');
+if(mvClose) mvClose.onclick=function(){mvM.classList.remove('show');mvC.innerHTML='';};
 mvM.addEventListener('click',function(e){if(e.target===mvM){mvM.classList.remove('show');mvC.innerHTML='';}});
 document.addEventListener('keydown',function(e){if(e.key==='Escape'&&mvM.classList.contains('show')){mvM.classList.remove('show');mvC.innerHTML='';}});
+});
 
 function isImg(u){return u&&(/\.(jpe?g|png|gif|webp|svg|bmp)(\?.*)?$/i.test(u)||u.startsWith('data:image/'));}
 function isVid(u){return u&&(/\.(mp4|webm|ogg|mov)(\?.*)?$/i.test(u)||u.startsWith('data:video/')||/youtu\.?be|vimeo\.com/i.test(u));}
@@ -1411,6 +1413,4 @@ setTimeout(function(){
     try { return nodes.map(n => ({ id: n.id, title: n.title, note: n.note, type: n.type, x: n.x, y: n.y })); }
     catch(e) { return []; }
   };
-
-}); // DOMContentLoaded
 })();
