@@ -1,7 +1,3 @@
-
-
-</script>
-<script>
 (function professionalBehaviorPatch(){
   'use strict';
   const oldCreateNode = window.createNode || createNode;
@@ -255,61 +251,6 @@
   draw(); triggerSave();
 })();
 
-</script>
-
-
-<!-- PATCH: editor de texto profissional e anti-vazamento -->
-<style id="professional-text-editor-patch">
-  #inline-editor.pro-editor {
-    position: fixed !important;
-    z-index: 2500 !important;
-    display: none;
-    background: var(--bg);
-    border: 1px solid var(--border2);
-    border-radius: 14px;
-    box-shadow: 0 18px 60px var(--shadow2);
-    padding: 10px;
-    pointer-events: auto;
-    min-width: 280px;
-    max-width: min(620px, calc(100vw - 28px));
-    max-height: min(72vh, 620px);
-    overflow: hidden;
-  }
-  #inline-editor.pro-editor.show { display: flex !important; flex-direction: column; gap: 8px; }
-  .pro-editor-bar {
-    display: flex; align-items: center; justify-content: space-between; gap: 8px;
-    padding: 2px 2px 8px; border-bottom: 1px solid var(--border);
-    cursor: default; user-select: none;
-  }
-  .pro-editor-title { font-size: 12px; font-weight: 700; color: var(--text2); display: flex; align-items: center; gap: 6px; }
-  .pro-editor-actions { display: flex; gap: 6px; }
-  .pro-editor-btn {
-    border: 1px solid var(--border); background: var(--bg2); color: var(--text);
-    border-radius: 8px; padding: 7px 10px; font-size: 12px; font-weight: 600;
-    font-family: 'Inter', sans-serif; cursor: pointer;
-  }
-  .pro-editor-btn:hover { background: var(--bg3); }
-  .pro-editor-btn.primary { background: var(--accent); color: var(--bg); border-color: var(--accent); }
-  #inline-title-input, #inline-note-input {
-    display: block !important;
-    background: var(--bg2) !important;
-    border: 1px solid var(--border) !important;
-    border-radius: 10px !important;
-    color: var(--text) !important;
-    padding: 10px 12px !important;
-    width: 100% !important;
-    min-width: 0 !important;
-    resize: vertical !important;
-    overflow: auto !important;
-    line-height: 1.45 !important;
-    white-space: pre-wrap !important;
-    overflow-wrap: anywhere !important;
-  }
-  #inline-title-input { min-height: 44px !important; max-height: 120px !important; font-weight: 700 !important; }
-  #inline-note-input { min-height: 120px !important; max-height: 380px !important; }
-  .pro-editor-help { font-size: 11px; color: var(--text3); padding: 0 2px 2px; }
-</style>
-<script id="professional-text-editor-patch-js">
 (function(){
   function clamp(v,min,max){ return Math.max(min, Math.min(max, v)); }
   function ensureEditorChrome(){
@@ -432,59 +373,7 @@
     }, true);
   });
 })();
-</script>
 
-
-
-<!-- PATCH: acabamento UI - scroll de menus, estados ativos, cadeado e tamanho de ícones -->
-<style id="ui-polish-scroll-lock-icon-patch-css">
-  /* Menu do botão direito: não estoura mais para fora da tela e aceita scroll do mouse */
-  #ctx-menu {
-    max-height: calc(100vh - 24px) !important;
-    overflow-y: auto !important;
-    overflow-x: hidden !important;
-    overscroll-behavior: contain;
-    min-width: 210px !important;
-    max-width: min(320px, calc(100vw - 24px)) !important;
-    scrollbar-width: thin;
-  }
-  #ctx-menu .ctx-item { min-height: 36px; }
-  #ctx-menu .ctx-item.active,
-  #ctx-menu .ctx-item[aria-pressed="true"] {
-    background: var(--accent) !important;
-    color: var(--bg) !important;
-    font-weight: 700;
-  }
-  #ctx-menu .ctx-item.active i,
-  #ctx-menu .ctx-item[aria-pressed="true"] i { color: var(--bg) !important; }
-
-  /* Barra inferior: estado desligado mais fraco, ligado mais evidente */
-  #bottom-bar .bb-btn {
-    opacity: .54;
-    position: relative;
-  }
-  #bottom-bar .bb-btn:hover { opacity: .86; }
-  #bottom-bar .bb-btn.active,
-  #bottom-bar .bb-btn[aria-pressed="true"] {
-    opacity: 1 !important;
-    background: var(--accent) !important;
-    color: var(--bg) !important;
-    box-shadow: 0 0 0 1px var(--accent), 0 6px 18px var(--shadow2);
-  }
-  #bottom-bar .bb-btn.active i,
-  #bottom-bar .bb-btn[aria-pressed="true"] i { color: var(--bg) !important; }
-  #bottom-bar .bb-btn.danger { opacity: .78; }
-
-  /* Painel de tamanho do ícone mais amplo */
-  #rp-iconsize-slider { min-width: 0; }
-  .icon-size-hint {
-    font-size: 11px;
-    color: var(--text3);
-    margin-top: 6px;
-    line-height: 1.35;
-  }
-</style>
-<script id="ui-polish-scroll-lock-icon-patch-js">
 (function(){
   'use strict';
 
@@ -658,16 +547,7 @@
   syncBottomBarState();
   draw();
 })();
-</script>
 
-
-
-<!-- PATCH: legenda externa de cards e subcards presos ao card-pai -->
-<style id="card-label-nesting-patch">
-  /* Respiro extra para nomes/legendas abaixo dos objetos */
-  #cvs { touch-action: none; }
-</style>
-<script id="card-label-nesting-patch-js">
 (function(){
   if(window.__cardLabelNestingPatch) return;
   window.__cardLabelNestingPatch = true;
@@ -875,12 +755,7 @@
   normalizeNesting();
   draw();
 })();
-</script>
 
-
-
-<!-- PATCH FINAL: títulos sem fundo + contraste automático + curvatura manual das conexões -->
-<script id="titles-and-manual-connection-curve-patch">
 (function(){
   if(window.__titlesAndManualConnectionCurvePatch) return;
   window.__titlesAndManualConnectionCurvePatch = true;
@@ -1155,10 +1030,7 @@
 
   draw();
 })();
-</script>
 
-
-<script>
 (function imagePolaroidAspectPatch(){
   'use strict';
 
@@ -1365,11 +1237,7 @@
 
   try{ draw(); }catch(e){}
 })();
-</script>
 
-
-<!-- PATCH DEFINITIVO: filhos nunca ficam atrás do card pai -->
-<script id="parent-child-layer-lock-final-patch">
 (function(){
   if(window.__parentChildLayerLockFinalPatch) return;
   window.__parentChildLayerLockFinalPatch = true;
@@ -1547,25 +1415,7 @@
 
   try{ enforceChildLayerNumbers(); syncArrayToRenderOrder(); draw(); }catch(e){}
 })();
-</script>
 
-
-
-<!-- PATCH FINAL: cores premium, título/texto separados, ícone sem fundo, animações e conexões reais -->
-<style id="premium-canvas-final-patch-css">
-  .premium-toggle-colors{width:100%;margin-top:8px;border:1px solid var(--border);background:var(--bg2);color:var(--text2);border-radius:8px;padding:7px 9px;font:600 11px Inter,sans-serif;cursor:pointer;transition:all .15s;}
-  .premium-toggle-colors:hover{background:var(--bg3);color:var(--text);border-color:var(--accent)}
-  .rpanel-colors.premium-compact .rpanel-swatch.premium-extra,
-  .color-dots.premium-compact .cdot.premium-extra{display:none;}
-  .rpanel-colors.premium-compact.expanded .rpanel-swatch.premium-extra,
-  .color-dots.premium-compact.expanded .cdot.premium-extra{display:block;}
-  .rpanel-swatch,.cdot{box-shadow:inset 0 0 0 1px rgba(0,0,0,.05),0 1px 3px var(--shadow);}
-  .rpanel-swatch.on,.cdot.on{box-shadow:0 0 0 2px var(--bg),0 0 0 4px var(--accent),0 4px 12px var(--shadow2);transform:scale(1.04);}
-  .premium-section-note{font-size:11px;color:var(--text3);margin-top:6px;line-height:1.35;}
-  #rp-animation-select{margin-top:6px;}
-  .premium-hidden-option{display:none!important;}
-</style>
-<script id="premium-canvas-final-patch-js">
 (function(){
   'use strict';
   if(window.__premiumCanvasFinalPatch) return;
@@ -1878,23 +1728,7 @@
   window.draw=draw=function(){ oldDraw(); if(!animFrame){ const active=(nodes||[]).some(n=>n.animation&&n.animation!=='none') || (connections||[]).some(c=>c.animated); if(active) animFrame=requestAnimationFrame(tick); } };
   draw();
 })();
-</script>
 
-
-<style id="palette-order-fix-css">
-  .rpanel-swatch[style*="255, 255, 255"], .rpanel-swatch[style*="#ffffff"], .cdot[style*="#ffffff"]{border-color:var(--border2);}
-</style>
-
-
-<!-- PATCH FINAL 2: paletas uniformes + conexões selecionadas/relacionadas + ajuste manual preservado -->
-<style id="uniform-palettes-and-manual-lines-css">
-  .rpanel-colors.premium-compact .rpanel-swatch.premium-extra,
-  .color-dots.premium-compact .cdot.premium-extra{display:none;}
-  .rpanel-colors.premium-compact.expanded .rpanel-swatch.premium-extra,
-  .color-dots.premium-compact.expanded .cdot.premium-extra{display:block;}
-  .rpanel-swatch[title="Branco"], .cdot[title="Branco"]{border-color:var(--border2)!important;}
-</style>
-<script id="uniform-palettes-and-manual-lines-js">
 (function(){
   'use strict';
   if(window.__uniformPalettesAndManualLinesPatch) return;
@@ -2105,24 +1939,7 @@
   if(selectedNode && typeof updatePanel==='function') updatePanel();
   draw();
 })();
-</script>
 
-
-<!-- PATCH RONY: remover bolinhas das linhas + editar animação funcional + polimento visual dos cards -->
-<style id="rony-line-dots-animation-card-polish-css">
-  .rony-highlight-control {
-    outline: 2px solid var(--accent);
-    outline-offset: 3px;
-    box-shadow: 0 0 0 6px color-mix(in srgb, var(--accent) 12%, transparent);
-  }
-  .rony-panel-hint {
-    font-size: 11px;
-    color: var(--text3);
-    line-height: 1.35;
-    margin-top: 6px;
-  }
-</style>
-<script id="rony-line-dots-animation-card-polish-js">
 (function(){
   'use strict';
   if(window.__ronyLineDotsAnimationCardPolish) return;
@@ -2311,19 +2128,7 @@
   polishCardDefaults();
   if(typeof draw === 'function') draw();
 })();
-</script>
 
-
-<!-- PATCH RONY FINAL: tracejado, atalhos, seleção do ícone e rota clara -->
-<style id="rony-final-adjustments-css">
-  .rpanel-colors,
-  .color-dots { align-items:center; }
-  .project-card,
-  .modal,
-  #right-panel,
-  #bottom-bar { border-radius: 14px; }
-</style>
-<script id="rony-final-adjustments-js">
 (function(){
   'use strict';
   if(window.__ronyFinalAdjustments) return;
@@ -2544,11 +2349,7 @@
   (nodes || []).forEach(normalizeCard);
   if(typeof draw === 'function') draw();
 })();
-</script>
 
-
-
-<script>
 /* PATCH FINAL — pastas, seleção estilo Windows e resize direto no canvas */
 (function(){
   'use strict';
@@ -2761,10 +2562,7 @@
   }
   setTimeout(function(){ migrateAll(); if(typeof draw === 'function') draw(); }, 0);
 })();
-</script>
 
-
-<script id="rony-clean-organized-selection-v2">
 (function(){
   'use strict';
   if(window.__ronyCleanOrganizedSelectionV2) return;
@@ -2868,11 +2666,7 @@
     }, true);
   }
 })();
-</script>
 
-
-
-<script id="rony-runtime-safety-fixes-v1">
 (function(){
   'use strict';
   if(window.__ronyRuntimeSafetyFixesV1) return;
@@ -2909,36 +2703,3 @@
     alert('O navegador bloqueia links file:// em páginas locais. Use http/https ou importe o arquivo no projeto.');
   }, true);
 })();
-</script>
-
-<!-- ═══════════════════════════════════════════════════════════════ MELHORIAS v2.5 ═══ -->
-<style id="v25-styles">
-#mv-modal{display:none;position:fixed;inset:0;z-index:9000;background:rgba(0,0,0,0.9);align-items:center;justify-content:center;flex-direction:column;gap:12px;}
-#mv-modal.show{display:flex;}
-#mv-modal img{max-width:90vw;max-height:85vh;border-radius:8px;object-fit:contain;}
-#mv-modal video{max-width:90vw;max-height:85vh;border-radius:8px;outline:none;}
-#mv-close{position:absolute;top:16px;right:20px;background:rgba(255,255,255,0.15);border:none;color:#fff;width:36px;height:36px;border-radius:50%;cursor:pointer;font-size:20px;line-height:36px;text-align:center;}
-#mv-close:hover{background:rgba(255,255,255,0.3);}
-#action-type-tabs{display:flex;gap:4px;margin-bottom:12px;flex-wrap:wrap;}
-.act-tab{flex:1;min-width:70px;padding:7px 4px;border:1px solid var(--border);border-radius:8px;background:var(--bg2);color:var(--text2);font-size:11px;font-weight:600;cursor:pointer;text-align:center;}
-.act-tab:hover{background:var(--bg3);}
-.act-tab.active{background:var(--accent);color:var(--bg);border-color:var(--accent);}
-#action-panels>div{display:none;}
-#action-panels>div.active{display:block;}
-.act-label{font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.04em;margin-bottom:6px;}
-#act-int-list{max-height:190px;overflow-y:auto;border:1px solid var(--border);border-radius:8px;margin-top:6px;}
-.act-item{padding:9px 12px;cursor:pointer;font-size:13px;display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--border);color:var(--text2);}
-.act-item:last-child{border-bottom:none;}
-.act-item:hover,.act-item.selected{background:var(--bg3);color:var(--text);}
-.act-item.selected{font-weight:600;}
-.act-empty{padding:14px;font-size:12px;color:var(--text3);text-align:center;}
-</style>
-
-<div id="mv-modal">
-  <button id="mv-close">✕</button>
-  <div id="mv-content"></div>
-</div>
-
-<script>
-(function(){
-'use strict';
