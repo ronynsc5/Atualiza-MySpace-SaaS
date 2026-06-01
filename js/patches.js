@@ -2704,3 +2704,33 @@
     alert('O navegador bloqueia links file:// em páginas locais. Use http/https ou importe o arquivo no projeto.');
   }, true);
 })();
+
+(function(){
+  'use strict';
+  if(window.__iconResizeMousedownFix) return;
+  window.__iconResizeMousedownFix = true;
+
+  const SPECIAL = new Set(['folder','note','icon']);
+
+  document.getElementById('cvs').addEventListener('mousedown', function(e){
+    if(e.button !== 0) return;
+    if(typeof camera === 'undefined' || typeof isResizeHandle === 'undefined') return;
+    const rect = e.target.getBoundingClientRect();
+    const mx = (e.clientX - rect.left - camera.x) / camera.zoom;
+    const my = (e.clientY - rect.top  - camera.y) / camera.zoom;
+    const n = (typeof selectedNode !== 'undefined') ? selectedNode : null;
+    if(!n || !SPECIAL.has(n.type) || n.locked) return;
+    if(!isResizeHandle(n, mx, my)) return;
+    // É o handle de resize — ativar resize e bloquear o handler padrão
+    isResizing = true;
+    resizeNode = n;
+    resizeStart = {
+      mx, my,
+      w: n.width,
+      h: n.minimized ? 44 : n.height,
+      iconSize: n.iconSize || 42
+    };
+    e.stopImmediatePropagation();
+    e.preventDefault();
+  }, true);
+})();
