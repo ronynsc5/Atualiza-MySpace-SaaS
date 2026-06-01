@@ -73,14 +73,34 @@
     const title=String(node.title||'').trim();
     ctx.save();
 
-    // seleção discreta: contorno só na área do ícone, nunca um card/fundo atrás dele
+    // seleção: quadrado centralizado no emoji com bolinha de resize
     if(isSel){
+      const pad = 6/camera.zoom;
+      const sx = x - pad;
+      const sy = y - pad;
+      const sw = w + pad*2;
+      const sh = h + pad*2;
+      // fundo sutil
+      ctx.fillStyle='rgba(59,130,246,0.08)';
+      roundRect(ctx, sx, sy, sw, sh, 10/camera.zoom);
+      ctx.fill();
+      // borda sólida
       ctx.strokeStyle='#3b82f6';
       ctx.lineWidth=1.5/camera.zoom;
-      ctx.setLineDash([5/camera.zoom,4/camera.zoom]);
-      roundRect(ctx,x+6/camera.zoom,y+4/camera.zoom,w-12/camera.zoom,Math.max(42/camera.zoom,h*0.62),10/camera.zoom);
-      ctx.stroke();
       ctx.setLineDash([]);
+      roundRect(ctx, sx, sy, sw, sh, 10/camera.zoom);
+      ctx.stroke();
+      // bolinha de resize no canto inferior direito
+      const bx = sx + sw;
+      const by = sy + sh;
+      const br = 5/camera.zoom;
+      ctx.beginPath();
+      ctx.arc(bx, by, br, 0, Math.PI*2);
+      ctx.fillStyle='#3b82f6';
+      ctx.fill();
+      ctx.strokeStyle='#ffffff';
+      ctx.lineWidth=1.5/camera.zoom;
+      ctx.stroke();
     }
 
     // ícone solto, sem fundo
@@ -2594,6 +2614,7 @@
 
   function drawCleanSelection(node){
     if(!isSpecialNode(node)) return;
+    if(node.type === 'icon') return; // icon draws its own selection
     const zoom = z();
     const b = selectionBox(node);
     ctx.save();
