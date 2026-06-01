@@ -1036,7 +1036,7 @@ function distToLine(px,py,x1,y1,x2,y2) {
 function isResizeHandle(node, x, y) {
   if(!node) return false;
   const h=node.minimized?44:node.height;
-  const thr=10/camera.zoom;
+  const thr=16/camera.zoom;
   return Math.hypot(x-(node.x+node.width), y-(node.y+h)) < thr;
 }
 
