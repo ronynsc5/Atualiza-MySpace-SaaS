@@ -1,3 +1,6 @@
+(function(){
+'use strict';
+
 // ── Viewer de mídia ───────────────────────────────────────────────
 var mvM=document.getElementById('mv-modal'), mvC=document.getElementById('mv-content');
 document.getElementById('mv-close').onclick=function(){mvM.classList.remove('show');mvC.innerHTML='';};
@@ -401,31 +404,7 @@ setTimeout(function(){
 })();
 
 })();
-</script>
 
-<style id="v30-styles">
-#right-panel .rpanel-body{overflow-y:auto!important;overflow-x:hidden!important;}
-#settings-modal .sm-content{overflow-y:auto!important;}
-#settings-modal .sm-sidebar{overflow-y:auto!important;}
-.modal-body{overflow-y:auto!important;}
-#act-int-list{overflow-y:auto!important;max-height:200px;}
-#projects-list{overflow-y:auto!important;max-height:320px;}
-#emoji-picker{overflow-y:auto!important;max-height:300px!important;}
-.emoji-grid{overflow-y:auto!important;max-height:240px;}
-*{scrollbar-width:thin;scrollbar-color:var(--border2) transparent;}
-::-webkit-scrollbar{width:5px;height:5px;}
-::-webkit-scrollbar-track{background:transparent;}
-::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px;}
-#bottom-bar{border-radius:14px!important;box-shadow:0 8px 32px var(--shadow2)!important;}
-.modal{border-radius:16px!important;}
-.sidebar-tool{border-radius:10px!important;transition:all .18s!important;}
-.sidebar-tool:hover{transform:translateX(2px);}
-#zoom-ctrl{border-radius:12px!important;}
-#ctx-menu{min-width:220px!important;padding:4px 0!important;border-radius:12px!important;box-shadow:0 12px 44px rgba(0,0,0,.25)!important;}
-.ctx-item{border-bottom:none!important;padding:9px 14px!important;gap:10px!important;}
-.ctx-sep{margin:4px 8px!important;}
-</style>
-<script id="v30">
 (function(){
   'use strict';
   if(window.__v30)return;
@@ -450,19 +429,7 @@ setTimeout(function(){
   var _oc2=window.createNode;window.createNode=createNode=function(x,y,type){var n=_oc2(x,y,type);if(n&&type==='card'&&(!n.bgColor||n.bgColor==='none')){var dark=document.body.classList.contains('theme-dark');if(dark){n.bgColor='#252523';n.borderColor='#4a4a48';n.textColor='#e8e8e5';n.titleColor='#f5f5f4';}else{n.bgColor='#ffffff';n.borderColor='#e0e0dd';n.textColor='#525250';n.titleColor='#1a1a18';}n.borderWidth=1.5;}return n;};
   setTimeout(function(){wireCtx();syncSliders();if(typeof draw==='function')draw();},400);
 })();
-</script>
 
-
-<!-- ═══════════════════════════════════════════════════════════════
-     v3.11 - STABILIZATION / SAFE ARCHITECTURE FACADE
-     Objetivo: melhorar robustez sem reescrever o motor existente.
-     - corrige IDs duplicados/aliases esperados por patches antigos
-     - expõe uma API organizada window.MySpace para futuras refatorações
-     - adiciona índice Map(id -> node) para consultas seguras
-     - endurece import/export/localStorage contra dados inválidos
-     - mantém compatibilidade com as funções globais atuais
-════════════════════════════════════════════════════════════════ -->
-<script id="myspace-v311-stabilization-js">
 (function(){
   'use strict';
   if (window.__MYSPACE_V311_STABILIZATION__) return;
@@ -668,18 +635,7 @@ setTimeout(function(){
     sanitizeCurrentState();
   });
 })();
-</script>
 
-<!-- ═══════════════════════════════════════════════════════════════
-     v3.12 - ARCHITECTURE FOUNDATION / 10-10 ROADMAP STEP
-     Objetivo: evoluir a base sem quebrar o app legado.
-     - kernel organizado com EventBus, Store, Repository, Commands
-     - backup automático em IndexedDB com fallback localStorage
-     - normalização mais forte de dados importados/salvos
-     - canvas HiDPI/Retina opcional e seguro
-     - API pública preparada para migração modular futura
-════════════════════════════════════════════════════════════════ -->
-<script id="myspace-v312-architecture-foundation-js">
 (function(){
   'use strict';
   if (window.__MYSPACE_V312_ARCHITECTURE__) return;
@@ -1090,10 +1046,7 @@ setTimeout(function(){
   repository.save(store.snapshot()).catch(() => {});
   setTimeout(function(){ try { if (typeof resize === 'function') resize(); else if (typeof draw === 'function') draw(); } catch(_) {} }, 80);
 })();
-</script>
 
-
-<script>
 /* MySpace v3.13 - Engine Refactor Layer
    Goal: improve engine internals without changing the existing UI/UX contract. */
 (function(){
@@ -1390,8 +1343,7 @@ setTimeout(function(){
   normalizeRuntime();
   try { if (typeof draw === 'function') draw(); } catch(err){ console.warn('[MySpace v3.13] initial draw failed', err); }
 })();
-</script>
-<script>
+
 /* MySpace AI Bridge v2 - salva no IndexedDB */
 (function(){
   function aiSave() {
