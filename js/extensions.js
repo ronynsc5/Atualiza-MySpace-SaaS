@@ -1,6 +1,8 @@
 (function(){
 'use strict';
 
+document.addEventListener('DOMContentLoaded', function() {
+
 // ── Viewer de mídia ───────────────────────────────────────────────
 var mvM=document.getElementById('mv-modal'), mvC=document.getElementById('mv-content');
 document.getElementById('mv-close').onclick=function(){mvM.classList.remove('show');mvC.innerHTML='';};
@@ -1409,4 +1411,6 @@ setTimeout(function(){
     try { return nodes.map(n => ({ id: n.id, title: n.title, note: n.note, type: n.type, x: n.x, y: n.y })); }
     catch(e) { return []; }
   };
+
+}); // DOMContentLoaded
 })();
