@@ -2646,8 +2646,9 @@
     if(isSpecialNode(node)){
       const zoom = z();
       const b = selectionBox(node);
-      const hx = b.x + b.w, hy = b.y + b.h;
-      return Math.abs(x - hx) <= 11/zoom && Math.abs(y - hy) <= 11/zoom;
+      const hx = b.x + b.w;
+      const hy = b.y + b.h;
+      return Math.abs(x - hx) <= 14/zoom && Math.abs(y - hy) <= 14/zoom;
     }
     return oldIsResizeHandle ? oldIsResizeHandle(node,x,y) : false;
   };
