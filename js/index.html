@@ -1,0 +1,1037 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MySpace v3.13 - Engine Refactor</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;6h00;700&display=swap" rel="stylesheet"/>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg: #f8f8f7;
+  --bg2: #f0f0ee;
+  --bg3: #e8e8e5;
+  --bg4: #deded9;
+  --border: #e0e0dd;
+  --border2: #d0d0cc;
+  --text: #1a1a18;
+  --text2: #525250;
+  --text3: #8a8a85;
+  --accent: #1a1a18;
+  --shadow: rgba(26,26,24,0.07);
+  --shadow2: rgba(26,26,24,0.13);
+  --card-shadow: 0 2px 12px rgba(26,26,24,0.06);
+  --connection-color: #aaaaaa;
+  --sidebar-w: 64px;
+  --topbar-h: 52px;
+  --rightpanel-w: 280px;
+}
+.theme-dark {
+  --bg: #1a1a18;
+  --bg2: #212120;
+  --bg3: #2a2a28;
+  --bg4: #333331;
+  --border: #3a3a38;
+  --border2: #454543;
+  --text: #f5f5f4;
+  --text2: #b8b8b5;
+  --text3: #8a8a85;
+  --accent: #e8e8e5;
+  --shadow: rgba(0,0,0,0.2);
+  --shadow2: rgba(0,0,0,0.35);
+  --card-shadow: 0 2px 12px rgba(0,0,0,0.25);
+  --connection-color: #555553;
+}
+body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text); overflow: hidden; -webkit-font-smoothing: antialiased; }
+
+/* ── TOP BAR ── */
+#topbar {
+  position: fixed; top: 0; left: 0; right: 0; height: var(--topbar-h);
+  background: var(--bg); border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; padding: 0 16px; gap: 8px; z-index: 200;
+  box-shadow: 0 1px 4px var(--shadow);
+}
+#topbar .logo { display: flex; align-items: center; gap: 8px; margin-right: 12px; }
+#topbar .logo-text { font-size: 15px; font-weight: 700; color: var(--text); letter-spacing: -0.02em; }
+#topbar .logo-badge { background: var(--bg3); border: 1px solid var(--border); border-radius: 5px; padding: 2px 6px; font-size: 11px; font-weight: 500; color: var(--text3); }
+#topbar .divider { width: 1px; height: 28px; background: var(--border); margin: 0 6px; }
+.topbar-btn { background: none; border: none; cursor: pointer; padding: 7px 9px; color: var(--text2); border-radius: 7px; font-size: 13px; display: flex; align-items: center; gap: 5px; transition: all 0.15s; font-family: 'Inter', sans-serif; font-weight: 500; }
+.topbar-btn:hover { background: var(--bg3); color: var(--text); }
+.topbar-btn i { font-size: 17px; }
+#topbar .save-status { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text3); margin-left: auto; }
+.save-dot { width: 7px; height: 7px; border-radius: 50%; background: #22c55e; }
+#btn-new { background: var(--accent); color: var(--bg); border: none; border-radius: 8px; padding: 8px 14px; font-size: 13px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 6px; font-family: 'Inter', sans-serif; transition: opacity 0.15s; }
+#btn-new:hover { opacity: 0.88; }
+#btn-new i { font-size: 16px; }
+
+/* ── LEFT SIDEBAR ── */
+#sidebar {
+  position: fixed; top: var(--topbar-h); left: 0; bottom: 0; width: var(--sidebar-w);
+  background: var(--bg); border-right: 1px solid var(--border);
+  display: flex; flex-direction: column; align-items: center; padding: 10px 0; gap: 2px; z-index: 150;
+}
+.sidebar-tool { display: flex; flex-direction: column; align-items: center; gap: 3px; width: 48px; padding: 8px 0; border-radius: 9px; cursor: pointer; color: var(--text3); font-size: 10px; font-weight: 500; transition: all 0.15s; border: none; background: none; }
+.sidebar-tool i { font-size: 20px; }
+.sidebar-tool:hover { background: var(--bg3); color: var(--text); }
+.sidebar-tool.on { background: var(--accent); color: var(--bg); }
+.sidebar-sep { width: 32px; height: 1px; background: var(--border); margin: 4px 0; }
+
+/* ── CANVAS AREA ── */
+#canvas-wrap {
+  position: fixed; top: var(--topbar-h); left: var(--sidebar-w); right: 0; bottom: 0;
+  overflow: hidden;
+}
+#cvs { position: absolute; inset: 0; width: 100%; height: 100%; cursor: default; }
+
+/* ── BREADCRUMB ── */
+#breadcrumb {
+  position: absolute; top: 12px; left: 12px; z-index: 80;
+  display: flex; align-items: center; gap: 4px;
+  background: var(--bg); border: 1px solid var(--border); border-radius: 8px;
+  padding: 6px 12px; font-size: 12px; color: var(--text2); box-shadow: var(--card-shadow);
+}
+.breadcrumb-item { cursor: pointer; transition: color 0.15s; display: flex; align-items: center; gap: 4px; }
+.breadcrumb-item:hover { color: var(--accent); }
+.breadcrumb-home { width: 18px; height: 18px; }
+.breadcrumb-sep { color: var(--text3); font-size: 14px; }
+.breadcrumb-chip { background: var(--bg3); border: 1px solid var(--border); border-radius: 6px; padding: 2px 8px; font-weight: 500; }
+.breadcrumb-chip.active { background: var(--bg2); }
+
+/* ── RIGHT PANEL ── */
+#right-panel {
+  position: fixed; top: var(--topbar-h); right: 0; bottom: 0; width: var(--rightpanel-w);
+  background: var(--bg); border-left: 1px solid var(--border);
+  display: flex; flex-direction: column; z-index: 150; transform: translateX(100%);
+  transition: transform 0.25s cubic-bezier(0.4,0,0.2,1); overflow: hidden;
+}
+#right-panel.show { transform: translateX(0); }
+.rpanel-tabs { display: flex; border-bottom: 1px solid var(--border); background: var(--bg); }
+.rpanel-tab { flex: 1; padding: 11px 4px; font-size: 12px; font-weight: 500; text-align: center; cursor: pointer; color: var(--text3); border-bottom: 2px solid transparent; transition: all 0.15s; }
+.rpanel-tab:hover { color: var(--text); }
+.rpanel-tab.on { color: var(--text); border-bottom-color: var(--accent); }
+.rpanel-body { flex: 1; overflow-y: auto; padding: 16px; }
+.rpanel-section { margin-bottom: 20px; }
+.rpanel-label { font-size: 11px; font-weight: 600; color: var(--text3); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 8px; }
+.rpanel-row { display: flex; align-items: center; justify-content: space-between; padding: 6px 0; }
+.rpanel-row label { font-size: 13px; color: var(--text2); }
+.rpanel-input { width: 100%; background: var(--bg2); border: 1px solid var(--border); border-radius: 7px; padding: 8px 10px; font-size: 13px; color: var(--text); font-family: 'Inter', sans-serif; transition: border-color 0.15s; }
+.rpanel-input:focus { outline: none; border-color: var(--accent); }
+.rpanel-textarea { min-height: 70px; resize: vertical; line-height: 1.5; }
+.rpanel-select { appearance: none; cursor: pointer; }
+
+/* Type indicator */
+.rp-type-row { display: flex; align-items: center; gap: 8px; padding: 10px 0; }
+.rp-type-icon { width: 28px; height: 28px; border-radius: 7px; background: #fbbf24; display: flex; align-items: center; justify-content: center; font-size: 16px; }
+.rp-type-text { font-size: 13px; font-weight: 500; color: var(--text); }
+
+/* Icon change button */
+.rpanel-icon-row { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+.rpanel-icon-preview { width: 36px; height: 36px; background: var(--bg3); border: 1px solid var(--border); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 20px; cursor: pointer; }
+.rpanel-icon-change { flex: 1; background: var(--bg2); border: 1px solid var(--border); border-radius: 7px; padding: 8px 10px; font-size: 12px; font-weight: 500; color: var(--text); cursor: pointer; transition: all 0.15s; font-family: 'Inter', sans-serif; display: flex; align-items: center; justify-content: center; gap: 5px; }
+.rpanel-icon-change:hover { background: var(--bg3); }
+
+/* Size sliders */
+.rpanel-size-row { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+.rpanel-size-label { font-size: 12px; color: var(--text3); width: 48px; }
+.rpanel-slider { flex: 1; height: 4px; accent-color: var(--accent); cursor: pointer; }
+.rpanel-size-val { font-size: 12px; color: var(--text2); width: 42px; text-align: right; font-variant-numeric: tabular-nums; }
+
+/* Color swatches - like image */
+.rpanel-colors { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px; }
+.rpanel-swatch { width: 26px; height: 26px; border-radius: 50%; cursor: pointer; border: 2px solid transparent; transition: all 0.15s; position: relative; }
+.rpanel-swatch:hover { transform: scale(1.15); }
+.rpanel-swatch.on { border-color: var(--accent); }
+.rpanel-swatch.swatch-none { background: var(--bg); border: 2px solid var(--border2); }
+.rpanel-swatch.swatch-none::after { content: ''; position: absolute; top: 50%; left: 10%; right: 10%; height: 2px; background: #ccc; transform: translateY(-50%) rotate(-45deg); }
+.rpanel-swatch.swatch-white { background: #ffffff; border: 2px solid #e0e0dd; }
+.rpanel-swatch.swatch-black { background: #000000; border: 2px solid #3a3a38; }
+.rpanel-swatch.swatch-yellow { background: #fef3c7; }
+.rpanel-swatch.swatch-orange { background: #fed7aa; }
+.rpanel-swatch.swatch-red { background: #fecaca; }
+.rpanel-swatch.swatch-pink { background: #fbcfe8; }
+.rpanel-swatch.swatch-purple { background: #e9d5ff; }
+.rpanel-swatch.swatch-blue { background: #bfdbfe; }
+.rpanel-swatch.swatch-teal { background: #a7f3d0; }
+.rpanel-swatch.swatch-gray { background: #e5e7eb; }
+
+.rpanel-swatch.swatch-b-none { background: var(--bg); border: 2px solid var(--border2); }
+.rpanel-swatch.swatch-b-none::after { content: ''; position: absolute; top: 50%; left: 10%; right: 10%; height: 2px; background: #ccc; transform: translateY(-50%) rotate(-45deg); }
+.rpanel-swatch.swatch-b-black { background: #1a1a18; }
+.rpanel-swatch.swatch-b-yellow { background: #f59e0b; }
+.rpanel-swatch.swatch-b-orange { background: #f97316; }
+.rpanel-swatch.swatch-b-red { background: #ef4444; }
+.rpanel-swatch.swatch-b-pink { background: #ec4899; }
+.rpanel-swatch.swatch-b-purple { background: #a855f7; }
+.rpanel-swatch.swatch-b-blue { background: #3b82f6; }
+.rpanel-swatch.swatch-b-teal { background: #10b981; }
+.rpanel-swatch.swatch-b-gray { background: #9ca3af; }
+
+.rpanel-swatch.swatch-t-black { background: #1a1a18; }
+.rpanel-swatch.swatch-t-white { background: #ffffff; border: 2px solid #d1d5db; }
+.rpanel-swatch.swatch-t-gray { background: #9ca3af; }
+.rpanel-swatch.swatch-t-red { background: #ef4444; }
+.rpanel-swatch.swatch-t-orange { background: #f97316; }
+.rpanel-swatch.swatch-t-yellow { background: #eab308; }
+.rpanel-swatch.swatch-t-pink { background: #ec4899; }
+.rpanel-swatch.swatch-t-cyan { background: #06b6d4; }
+.rpanel-swatch.swatch-t-lime { background: #84cc16; }
+.rpanel-swatch.swatch-t-blue { background: #3b82f6; }
+.rpanel-swatch.swatch-t-purple { background: #a855f7; }
+.rpanel-swatch.swatch-t-indigo { background: #6366f1; }
+.rpanel-swatch.swatch-t-green { background: #22c55e; }
+.rpanel-swatch.swatch-t-brown { background: #92400e; }
+
+/* Border width row */
+.rpanel-bw-row { display: flex; align-items: center; gap: 8px; }
+.rpanel-bw-label { font-size: 12px; color: var(--text3); flex: 1; }
+
+/* Actions section */
+.rpanel-action { display: flex; align-items: center; justify-content: space-between; padding: 8px 10px; background: var(--bg2); border: 1px solid var(--border); border-radius: 7px; margin-bottom: 8px; cursor: pointer; font-size: 12px; color: var(--text2); transition: all 0.15s; }
+.rpanel-action:hover { background: var(--bg3); }
+.rpanel-action-label { font-weight: 500; color: var(--text); }
+.rpanel-action-val { color: var(--text3); font-size: 11px; max-width: 120px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rpanel-action-remove { background: none; border: none; cursor: pointer; color: var(--text3); padding: 2px; font-size: 14px; transition: color 0.15s; }
+.rpanel-action-remove:hover { color: #ef4444; }
+.rpanel-add-action { width: 100%; background: none; border: 1px dashed var(--border2); border-radius: 7px; padding: 8px; font-size: 12px; color: var(--text3); cursor: pointer; transition: all 0.15s; font-family: 'Inter', sans-serif; display: flex; align-items: center; justify-content: center; gap: 6px; margin-top: 6px; }
+.rpanel-add-action:hover { background: var(--bg2); color: var(--text); border-color: var(--accent); }
+
+/* ── BOTTOM ACTION BAR ── */
+#bottom-bar {
+  position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+  background: var(--bg); border: 1px solid var(--border); border-radius: 12px;
+  box-shadow: 0 6px 24px var(--shadow2); display: none; align-items: center;
+  gap: 2px; padding: 6px 10px; z-index: 160;
+}
+#bottom-bar.show { display: flex; }
+.bb-btn { background: none; border: none; cursor: pointer; padding: 7px 10px; color: var(--text2); border-radius: 8px; font-size: 14px; transition: all 0.15s; }
+.bb-btn:hover { background: var(--bg3); color: var(--text); }
+.bb-btn i { font-size: 19px; display: block; }
+.bb-sep { width: 1px; height: 24px; background: var(--border); margin: 0 4px; }
+.bb-btn.danger { color: #ef4444; }
+.bb-btn.danger:hover { background: #fef2f2; }
+
+/* ── INLINE TEXT EDITOR ── */
+#inline-editor {
+  position: absolute; z-index: 300; display: none; pointer-events: none;
+}
+#inline-editor.show { display: block; pointer-events: all; }
+#inline-title-input {
+  border: none; outline: none; background: transparent; font-family: 'Inter', sans-serif;
+  font-weight: 600; color: var(--text); text-align: left; resize: none; overflow: hidden;
+  padding: 0; width: 100%; line-height: 1.3;
+}
+#inline-note-input {
+  border: none; outline: none; background: transparent; font-family: 'Inter', sans-serif;
+  color: var(--text2); text-align: left; resize: none; overflow: hidden;
+  padding: 0; width: 100%; line-height: 1.5; margin-top: 4px;
+}
+
+/* ── STATUS BAR ── */
+#status-bar {
+  position: fixed; bottom: 16px; left: calc(var(--sidebar-w) + 12px);
+  background: var(--bg); border: 1px solid var(--border); border-radius: 7px;
+  padding: 5px 12px; font-size: 11px; color: var(--text3); z-index: 80;
+  box-shadow: var(--card-shadow); font-variant-numeric: tabular-nums;
+}
+
+/* ── ZOOM CONTROLS ── */
+#zoom-ctrl {
+  position: absolute; bottom: 20px; right: 20px; display: flex; align-items: center;
+  gap: 4px; background: var(--bg); border: 1px solid var(--border); border-radius: 9px;
+  padding: 4px; box-shadow: var(--card-shadow); z-index: 80;
+}
+.zoom-btn { background: none; border: none; cursor: pointer; padding: 5px 8px; color: var(--text2); border-radius: 6px; font-size: 14px; transition: all 0.15s; }
+.zoom-btn:hover { background: var(--bg3); }
+#zoom-val { font-size: 12px; color: var(--text2); min-width: 44px; text-align: center; font-variant-numeric: tabular-nums; }
+
+/* ── SEARCH BAR ── */
+#search-bar {
+  position: absolute; top: 12px; right: 12px; z-index: 100;
+  background: var(--bg); border: 1px solid var(--border); border-radius: 9px;
+  padding: 8px 10px; display: none; align-items: center; gap: 6px;
+  box-shadow: var(--card-shadow); min-width: 260px;
+}
+#search-bar.show { display: flex; }
+#search-inp { flex: 1; background: var(--bg2); border: 1px solid var(--border); border-radius: 6px; padding: 6px 10px; font-size: 12px; color: var(--text); font-family: 'Inter', sans-serif; }
+#search-inp:focus { outline: none; border-color: var(--accent); }
+.search-btn { background: none; border: none; cursor: pointer; padding: 4px; color: var(--text3); font-size: 14px; transition: color 0.15s; }
+.search-btn:hover { color: var(--text); }
+
+/* ── OVERLAYS ── */
+.overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.4); backdrop-filter: blur(2px); z-index: 999; display: none; }
+.overlay.show { display: block; }
+.modal { position: fixed; top: 50%; left: 50%; transform: translate(-50%,-50%) scale(0.96); background: var(--bg); border: 1px solid var(--border); border-radius: 12px; box-shadow: 0 16px 52px var(--shadow2); z-index: 1001; display: none; opacity: 0; transition: all 0.22s cubic-bezier(0.4,0,0.2,1); min-width: 380px; max-width: 480px; max-height: 90vh; flex-direction: column; }
+.modal.show { display: flex; opacity: 1; transform: translate(-50%,-50%) scale(1); }
+.modal-hdr { padding: 18px 22px; border-bottom: 1px solid var(--border); font-size: 15px; font-weight: 600; flex-shrink: 0; }
+.modal-body { padding: 20px 22px; overflow-y: auto; flex: 1; }
+.modal-ftr { padding: 14px 22px; border-top: 1px solid var(--border); display: flex; gap: 8px; justify-content: flex-end; flex-shrink: 0; }
+.modal-btn { background: var(--bg2); border: 1px solid var(--border); border-radius: 7px; padding: 9px 18px; font-size: 13px; font-weight: 500; color: var(--text); cursor: pointer; font-family: 'Inter', sans-serif; transition: all 0.15s; }
+.modal-btn:hover { background: var(--bg3); }
+.modal-btn.primary { background: var(--accent); color: var(--bg); border-color: var(--accent); }
+.modal-btn.primary:hover { opacity: 0.88; }
+
+/* ── SETTINGS MODAL ── */
+#settings-modal { position: fixed; top: 50%; left: 50%; transform: translate(-50%,-50%) scale(0.96); width: 680px; max-height: 78vh; background: var(--bg); border: 1px solid var(--border); border-radius: 14px; box-shadow: 0 16px 52px var(--shadow2); z-index: 1001; display: none; opacity: 0; transition: all 0.22s; overflow: hidden; }
+#settings-modal.show { display: flex; opacity: 1; transform: translate(-50%,-50%) scale(1); }
+.sm-sidebar { width: 190px; background: var(--bg2); border-right: 1px solid var(--border); padding: 20px 0; }
+.sm-tab { padding: 11px 20px; cursor: pointer; font-size: 13px; font-weight: 500; color: var(--text2); display: flex; align-items: center; gap: 10px; transition: all 0.15s; }
+.sm-tab:hover { background: var(--bg3); color: var(--text); }
+.sm-tab.on { background: var(--bg); color: var(--accent); border-left: 2px solid var(--accent); }
+.sm-tab i { font-size: 16px; }
+.sm-content { flex: 1; padding: 24px; overflow-y: auto; }
+.sm-section { display: none; }
+.sm-section.on { display: block; }
+.sm-header { font-size: 18px; font-weight: 600; margin-bottom: 20px; letter-spacing: -0.02em; }
+.sm-option { display: flex; align-items: center; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid var(--border); }
+.sm-option:last-child { border-bottom: none; }
+.sm-option-info { flex: 1; }
+.sm-option-title { font-size: 13px; font-weight: 500; margin-bottom: 2px; }
+.sm-option-desc { font-size: 11px; color: var(--text3); }
+.toggle { width: 42px; height: 24px; background: var(--border2); border-radius: 12px; position: relative; cursor: pointer; transition: background 0.22s; }
+.toggle.on { background: var(--accent); }
+.toggle-knob { width: 20px; height: 20px; background: var(--bg); border-radius: 50%; position: absolute; top: 2px; left: 2px; transition: left 0.22s; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+.toggle.on .toggle-knob { left: 20px; }
+.sm-close { position: absolute; top: 15px; right: 15px; background: none; border: none; cursor: pointer; color: var(--text3); font-size: 20px; padding: 4px; }
+
+/* ── SHAPE & STYLE SELECTORS ── */
+.shape-option, .style-option { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 12px; border: 2px solid var(--border); border-radius: 10px; cursor: pointer; transition: all 0.2s; }
+.shape-option:hover, .style-option:hover { border-color: var(--accent); background: var(--bg2); transform: translateY(-2px); }
+.shape-option.selected, .style-option.selected { border-color: var(--accent); background: var(--bg3); }
+.shape-preview, .style-preview { width: 60px; height: 60px; background: var(--bg3); border: 2px solid var(--border); display: flex; align-items: center; justify-content: center; }
+.shape-name, .style-name { font-size: 11px; font-weight: 500; color: var(--text2); text-align: center; }
+.shape-rect { border-radius: 4px; }
+.shape-square { border-radius: 4px; width: 50px; height: 50px; }
+.shape-rounded { border-radius: 12px; }
+.shape-circle { border-radius: 50%; }
+.shape-pill { border-radius: 30px; }
+.shape-hexagon { clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%); }
+.shape-octagon { clip-path: polygon(30% 0%, 70% 0%, 100% 30%, 100% 70%, 70% 100%, 30% 100%, 0% 70%, 0% 30%); }
+.shape-diamond { clip-path: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%); }
+.shape-triangle { clip-path: polygon(50% 0%, 100% 100%, 0% 100%); }
+.shape-star { clip-path: polygon(50% 0%, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%); }
+.style-clean { background: #ffffff; border-color: #e5e7eb; }
+.style-minimal { background: #f9fafb; border-color: #d1d5db; box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
+.style-neon { background: #1a1a1a; border-color: #00ffff; box-shadow: 0 0 10px rgba(0,255,255,0.5); }
+.style-futuristic { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-color: #764ba2; }
+.style-glass { background: rgba(255,255,255,0.1); backdrop-filter: blur(10px); border-color: rgba(255,255,255,0.2); }
+.style-dark { background: #1a1a1a; border-color: #333; box-shadow: 0 4px 6px rgba(0,0,0,0.3); }
+.style-3d { background: linear-gradient(145deg, #e6e6e6, #ffffff); box-shadow: 5px 5px 10px #d1d1d1, -5px -5px 10px #ffffff; border-color: transparent; }
+.style-soft { background: #ffffff; border-color: #e5e7eb; box-shadow: 0 10px 30px rgba(0,0,0,0.1); }
+.style-cyber { background: #000; border: 2px solid #ff00de; box-shadow: 0 0 20px rgba(255,0,222,0.4), inset 0 0 20px rgba(0,255,255,0.2); }
+.style-terminal { background: #0d1117; border-color: #30a14e; box-shadow: 0 0 8px rgba(48,161,78,0.4); }
+.style-material { background: #ffffff; border-color: transparent; box-shadow: 0 2px 4px rgba(0,0,0,0.12), 0 4px 16px rgba(0,0,0,0.08); }
+.style-outline { background: transparent; border: 2px dashed var(--border2); }
+.modal-body::-webkit-scrollbar { width: 6px; }
+.modal-body::-webkit-scrollbar-track { background: transparent; }
+.modal-body::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
+
+/* ══════════════════════════════════════════════════════════════ */
+/* ── DASHBOARD DE PROJETOS ──────────────────────────────────── */
+/* ══════════════════════════════════════════════════════════════ */
+#project-dashboard { position: fixed; inset: 0; background: var(--bg); z-index: 2000; overflow-y: auto; }
+.dashboard-header { padding: 24px 40px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+.dashboard-logo { display: flex; align-items: center; gap: 12px; }
+.dashboard-btn { background: var(--bg2); border: 1px solid var(--border); border-radius: 8px; padding: 10px 18px; font-size: 13px; font-weight: 500; color: var(--text); cursor: pointer; font-family: 'Inter', sans-serif; transition: all 0.15s; display: flex; align-items: center; gap: 8px; }
+.dashboard-btn:hover { background: var(--bg3); }
+.dashboard-btn i { font-size: 16px; }
+
+.dashboard-content { max-width: 1200px; margin: 0 auto; padding: 60px 40px; }
+.dashboard-title { font-size: 32px; font-weight: 700; margin-bottom: 8px; letter-spacing: -0.03em; }
+.dashboard-subtitle { font-size: 15px; color: var(--text2); margin-bottom: 40px; }
+
+.dashboard-new-project { background: var(--accent); color: var(--bg); border: none; border-radius: 12px; padding: 18px 28px; font-size: 15px; font-weight: 600; cursor: pointer; font-family: 'Inter', sans-serif; transition: opacity 0.15s; display: inline-flex; align-items: center; gap: 10px; margin-bottom: 32px; }
+.dashboard-new-project:hover { opacity: 0.88; }
+.dashboard-new-project i { font-size: 20px; }
+
+.dashboard-projects { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px; }
+.project-card { background: var(--bg); border: 2px solid var(--border); border-radius: 12px; padding: 24px; cursor: pointer; transition: all 0.2s; position: relative; }
+.project-card:hover { border-color: var(--accent); transform: translateY(-4px); box-shadow: 0 8px 24px var(--shadow); }
+.project-card-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 16px; }
+.project-card-icon { width: 48px; height: 48px; background: var(--bg3); border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 24px; }
+.project-card-menu { background: none; border: none; cursor: pointer; color: var(--text3); font-size: 20px; padding: 4px; }
+.project-card-menu:hover { color: var(--text); }
+.project-card-name { font-size: 18px; font-weight: 600; margin-bottom: 8px; }
+.project-card-meta { font-size: 12px; color: var(--text3); display: flex; align-items: center; gap: 12px; }
+.project-card-stat { display: flex; align-items: center; gap: 4px; }
+.project-card-stat i { font-size: 14px; }
+
+
+.project-card-menu-popover { position: fixed; background: var(--bg); border: 1px solid var(--border); border-radius: 10px; box-shadow: 0 8px 28px var(--shadow2); z-index: 2600; min-width: 170px; overflow: hidden; display: none; }
+.project-card-menu-popover.show { display: block; }
+.project-menu-item { padding: 10px 14px; cursor: pointer; font-size: 13px; color: var(--text); display: flex; align-items: center; gap: 9px; border-bottom: 1px solid var(--border); transition: background 0.12s; }
+.project-menu-item:last-child { border-bottom: none; }
+.project-menu-item:hover { background: var(--bg3); }
+.project-menu-item i { font-size: 15px; color: var(--text3); }
+.project-menu-item.danger { color: #ef4444; }
+.project-menu-item.danger:hover { background: #fef2f2; }
+.project-menu-item.disabled { opacity: .45; cursor: not-allowed; pointer-events: none; }
+
+/* ── CONTEXT MENU ── */
+#ctx-menu { position: fixed; background: var(--bg); border: 1px solid var(--border); border-radius: 10px; box-shadow: 0 8px 28px var(--shadow2); z-index: 500; display: none; min-width: 170px; overflow: hidden; }
+#ctx-menu.show { display: block; }
+.ctx-item { padding: 10px 14px; cursor: pointer; font-size: 13px; color: var(--text); display: flex; align-items: center; gap: 9px; border-bottom: 1px solid var(--border); transition: background 0.12s; }
+.ctx-item:last-child { border-bottom: none; }
+.ctx-item:hover { background: var(--bg3); }
+.ctx-item i { font-size: 15px; color: var(--text3); }
+.ctx-item.danger { color: #ef4444; }
+.ctx-item.danger:hover { background: #fef2f2; }
+.ctx-sep { height: 1px; background: var(--border); margin: 4px 0; }
+
+/* ── EMOJI PICKER ── */
+#emoji-picker { position: fixed; background: var(--bg); border: 1px solid var(--border); border-radius: 10px; box-shadow: 0 8px 28px var(--shadow2); z-index: 600; display: none; padding: 10px; }
+#emoji-picker.show { display: block; }
+.emoji-grid { display: grid; grid-template-columns: repeat(8, 1fr); gap: 4px; max-height: 200px; overflow-y: auto; }
+.emoji-item { font-size: 19px; padding: 5px; cursor: pointer; text-align: center; border-radius: 6px; transition: background 0.12s; }
+.emoji-item:hover { background: var(--bg3); }
+
+/* ── THEME GRID ── */
+.theme-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 10px; }
+.theme-opt { padding: 14px; border: 2px solid var(--border); border-radius: 9px; cursor: pointer; text-align: center; transition: all 0.15s; }
+.theme-opt:hover, .theme-opt.on { border-color: var(--accent); }
+.theme-preview { width: 100%; height: 56px; border-radius: 7px; margin-bottom: 8px; display: flex; gap: 4px; padding: 8px; }
+.theme-light-p { background: #fafaf9; border: 1px solid #e0e0dd; }
+.theme-dark-p { background: #1a1a18; border: 1px solid #3a3a38; }
+.preview-bar { flex: 1; border-radius: 3px; }
+
+/* ── PANEL BTN ── */
+.panel-btn { width: 100%; background: var(--bg2); border: 1px solid var(--border); border-radius: 7px; padding: 10px; font-size: 13px; font-weight: 500; color: var(--text); cursor: pointer; transition: all 0.15s; font-family: 'Inter', sans-serif; display: flex; align-items: center; justify-content: center; gap: 7px; }
+.panel-btn:hover { background: var(--bg3); }
+.panel-btn.danger { color: #ef4444; }
+.panel-btn.danger:hover { background: #fef2f2; }
+
+
+.rpanel-format-row { display:flex; align-items:center; gap:6px; margin-top:8px; flex-wrap:wrap; }
+.rpanel-mini-btn { background:var(--bg2); border:1px solid var(--border); border-radius:7px; padding:7px 9px; color:var(--text); cursor:pointer; font-size:12px; font-weight:600; min-width:32px; transition:all .15s; }
+.rpanel-mini-btn:hover, .rpanel-mini-btn.on { background:var(--accent); color:var(--bg); border-color:var(--accent); }
+.rpanel-file-btn { width:100%; background:var(--bg2); border:1px dashed var(--border2); border-radius:7px; padding:9px; font-size:12px; color:var(--text2); cursor:pointer; display:flex; align-items:center; justify-content:center; gap:6px; font-family:'Inter',sans-serif; }
+.rpanel-file-btn:hover { background:var(--bg3); color:var(--text); border-color:var(--accent); }
+
+/* scrollbar */
+::-webkit-scrollbar { width: 6px; } ::-webkit-scrollbar-track { background: var(--bg2); } ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
+
+/* ── CONN EDITOR ── */
+.conn-preview { height: 70px; background: var(--bg2); border: 1px solid var(--border); border-radius: 8px; display: flex; align-items: center; justify-content: center; margin-top: 12px; }
+.conn-preview-line { position: absolute; height: 2px; width: 60%; background: var(--accent); }
+.color-dots { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 6px; }
+.cdot { width: 32px; height: 32px; border-radius: 8px; cursor: pointer; border: 2px solid transparent; transition: all 0.15s; }
+.cdot:hover { transform: scale(1.1); }
+.cdot.on { border-color: var(--accent); }
+
+/* ── PROP INPUT GROUP ── */
+.prop-group { margin-bottom: 16px; }
+.prop-label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.07em; color: var(--text3); margin-bottom: 6px; }
+</style>
+</head>
+<body>
+
+<!-- TOP BAR -->
+<div id="topbar">
+  <div class="logo">
+    <svg width="22" height="22" viewBox="0 0 22 22" fill="none"><rect width="22" height="22" rx="6" fill="#1a1a18"/><circle cx="11" cy="11" r="5" fill="white" opacity="0.9"/><circle cx="11" cy="11" r="2.5" fill="#1a1a18"/></svg>
+    <span class="logo-text">MySpace</span>
+    <span class="logo-badge">v3.13</span>
+  </div>
+  <div class="divider"></div>
+  <button class="topbar-btn" id="btn-undo" title="Desfazer (Ctrl+Z)"><i class="ti ti-arrow-back-up"></i></button>
+  <button class="topbar-btn" id="btn-redo" title="Refazer (Ctrl+Y)"><i class="ti ti-arrow-forward-up"></i></button>
+  <div class="divider"></div>
+  <div class="save-status">
+    <div class="save-dot" id="save-dot"></div>
+    <span id="save-label">Salvo</span>
+    <span id="save-time" style="margin-left:2px; opacity:.6;">• 12:48</span>
+  </div>
+  <div style="margin-left:auto; display:flex; align-items:center; gap:6px;">
+    <button class="topbar-btn" id="btn-projects" title="Gerenciar Projetos"><i class="ti ti-folders"></i></button>
+    <button class="topbar-btn" id="btn-dark" title="Tema Escuro"><i class="ti ti-moon"></i></button>
+    <button class="topbar-btn" id="btn-search-top" title="Buscar"><i class="ti ti-search"></i></button>
+    <button class="topbar-btn" id="btn-export" title="Exportar"><i class="ti ti-upload"></i></button>
+    <button class="topbar-btn" id="btn-settings" title="Configurações"><i class="ti ti-settings"></i></button>
+    <button id="btn-new"><i class="ti ti-plus"></i>Novo</button>
+  </div>
+</div>
+
+<!-- LEFT SIDEBAR -->
+<div id="sidebar">
+  <button class="sidebar-tool on" id="tool-select" data-mode="select" title="Selecionar (V)">
+    <i class="ti ti-pointer"></i>
+    <span>Selecionar</span>
+  </button>
+  <div class="sidebar-sep"></div>
+  <button class="sidebar-tool" id="tool-card" data-mode="card" title="Card (C)">
+    <i class="ti ti-square-rounded"></i>
+    <span>Card</span>
+  </button>
+  <button class="sidebar-tool" id="tool-folder" data-mode="folder" title="Pasta (F)">
+    <i class="ti ti-folder"></i>
+    <span>Pasta</span>
+  </button>
+  <button class="sidebar-tool" id="tool-note" data-mode="note" title="Nota (N)">
+    <i class="ti ti-note"></i>
+    <span>Nota</span>
+  </button>
+  <button class="sidebar-tool" id="tool-image" data-mode="image" title="Imagem">
+    <i class="ti ti-photo"></i>
+    <span>Imagem</span>
+  </button>
+  <button class="sidebar-tool" id="tool-connect" data-mode="connect" title="Conectar (L)">
+    <i class="ti ti-link"></i>
+    <span>Conectar</span>
+  </button>
+  <button class="sidebar-tool" id="tool-wormhole" data-mode="wormhole" title="Wormhole / Portal (#Projeto)">
+    <i class="ti ti-portal"></i>
+    <span>Portal</span>
+  </button>
+  <button class="sidebar-tool" id="tool-text" data-mode="text" title="Texto (T)">
+    <i class="ti ti-letter-t"></i>
+    <span>Texto</span>
+  </button>
+  <div class="sidebar-sep"></div>
+  <button class="sidebar-tool" id="tool-hand" data-mode="hand" title="Mão (H)">
+    <i class="ti ti-hand-grab"></i>
+    <span>Mão</span>
+  </button>
+</div>
+
+<!-- CANVAS AREA -->
+<div id="canvas-wrap">
+  <canvas id="cvs"></canvas>
+
+  <!-- Breadcrumb -->
+  <div id="breadcrumb">
+    <div class="breadcrumb-item" data-level="root">
+      <svg class="breadcrumb-home" viewBox="0 0 20 20" fill="currentColor"><path d="M10 2L2 9h2v9h5v-5h2v5h5V9h2L10 2z"/></svg>
+    </div>
+    <span class="breadcrumb-sep">›</span>
+    <div class="breadcrumb-item"><span class="breadcrumb-chip">Projetos</span></div>
+    <span class="breadcrumb-sep">›</span>
+    <div class="breadcrumb-item"><span class="breadcrumb-chip active">Lançamento</span></div>
+  </div>
+
+  <!-- Search Bar -->
+  <div id="search-bar">
+    <input type="text" id="search-inp" placeholder="Buscar cards...">
+    <button class="search-btn" id="search-prev"><i class="ti ti-chevron-left"></i></button>
+    <button class="search-btn" id="search-next"><i class="ti ti-chevron-right"></i></button>
+    <button class="search-btn" id="search-close"><i class="ti ti-x"></i></button>
+  </div>
+
+  <!-- Zoom Controls -->
+  <div id="zoom-ctrl">
+    <button class="zoom-btn" id="btn-zoom-out"><i class="ti ti-minus"></i></button>
+    <span id="zoom-val">100%</span>
+    <button class="zoom-btn" id="btn-zoom-in"><i class="ti ti-plus"></i></button>
+    <button class="zoom-btn" id="btn-fit" title="Ajustar"><i class="ti ti-focus-2"></i></button>
+  </div>
+
+  <!-- Inline Editor -->
+  <div id="inline-editor">
+    <textarea id="inline-title-input" rows="2"></textarea>
+    <textarea id="inline-note-input" rows="3"></textarea>
+  </div>
+</div>
+
+<!-- RIGHT PANEL -->
+<div id="right-panel">
+  <div class="rpanel-tabs">
+    <div class="rpanel-tab on" data-tab="props">Propriedades</div>
+    <div class="rpanel-tab" data-tab="style">Estilo</div>
+    <div class="rpanel-tab" data-tab="conn">Conexão</div>
+  </div>
+  <div class="rpanel-body">
+    <!-- TAB: Propriedades -->
+    <div id="tab-props" class="rpanel-tab-content">
+      <div class="rpanel-section">
+        <div class="rpanel-label">Tipo</div>
+        <div class="rp-type-row">
+          <div class="rp-type-icon" id="rp-type-icon">📁</div>
+          <span class="rp-type-text" id="rp-type-text">Pasta</span>
+          <select id="rp-type-select" class="rpanel-input rpanel-select" style="margin-left:auto;width:auto;padding:5px 8px;font-size:12px;">
+            <option value="card">Card</option>
+            <option value="folder">Pasta</option>
+            <option value="note">Nota</option>
+          </select>
+        </div>
+      </div>
+      <div class="rpanel-section">
+        <div class="rpanel-label">Nome</div>
+        <input type="text" id="rp-title" class="rpanel-input" placeholder="Nome do card">
+      </div>
+      <div class="rpanel-section">
+        <div class="rpanel-label" id="rp-note-label">Nota dentro do card</div>
+        <textarea id="rp-note" class="rpanel-input rpanel-textarea" placeholder="Escreva uma nota..."></textarea>
+      </div>
+      <div class="rpanel-section">
+        <div class="rpanel-label">Ícone</div>
+        <div class="rpanel-icon-row">
+          <div class="rpanel-icon-preview" id="rp-icon-preview" title="Clique para mudar">🗂</div>
+          <button class="rpanel-icon-change" id="rp-icon-change-btn"><i class="ti ti-mood-smile"></i> Mudar ícone</button>
+        </div>
+        <div class="rpanel-size-row">
+          <span class="rpanel-size-label">X</span>
+          <input type="range" class="rpanel-slider" id="rp-iconx-slider" min="-120" max="120" step="1">
+          <span class="rpanel-size-val" id="rp-iconx-val">0px</span>
+        </div>
+        <div class="rpanel-size-row">
+          <span class="rpanel-size-label">Y</span>
+          <input type="range" class="rpanel-slider" id="rp-icony-slider" min="-120" max="120" step="1">
+          <span class="rpanel-size-val" id="rp-icony-val">0px</span>
+        </div>
+        <div class="rpanel-row">
+          <label>Ícone sem fundo</label>
+          <div class="toggle on" id="rp-icon-bg-toggle"><div class="toggle-knob"></div></div>
+        </div>
+      </div>
+      <div class="rpanel-section">
+        <div class="rpanel-label">Tamanho</div>
+        <div class="rpanel-size-row">
+          <span class="rpanel-size-label">Largura</span>
+          <input type="range" class="rpanel-slider" id="rp-width-slider" min="80" max="500" step="10">
+          <span class="rpanel-size-val" id="rp-width-val">180px</span>
+        </div>
+        <div class="rpanel-size-row">
+          <span class="rpanel-size-label">Altura</span>
+          <input type="range" class="rpanel-slider" id="rp-height-slider" min="60" max="400" step="10">
+          <span class="rpanel-size-val" id="rp-height-val">120px</span>
+        </div>
+        <div class="rpanel-size-row">
+          <span class="rpanel-size-label">Ícone</span>
+          <input type="range" class="rpanel-slider" id="rp-iconsize-slider" min="14" max="48" step="2">
+          <span class="rpanel-size-val" id="rp-iconsize-val">32px</span>
+        </div>
+      </div>
+      <div class="rpanel-section">
+        <div class="rpanel-label">Ações do card</div>
+        <div id="rp-actions-list"></div>
+        <button class="rpanel-add-action" id="rp-add-action-btn"><i class="ti ti-plus"></i> Adicionar ação</button>
+      </div>
+    </div>
+
+    <!-- TAB: Estilo -->
+    <div id="tab-style" class="rpanel-tab-content" style="display:none;">
+      <div class="rpanel-section">
+        <div class="rpanel-label">Fundo</div>
+        <div class="rpanel-colors" id="rp-bg-swatches">
+          <div class="rpanel-swatch swatch-none on" data-bg="none"></div>
+          <div class="rpanel-swatch swatch-white" data-bg="#ffffff"></div>
+          <div class="rpanel-swatch swatch-black" data-bg="#000000" title="Preto"></div>
+          <div class="rpanel-swatch swatch-yellow" data-bg="#fef3c7"></div>
+          <div class="rpanel-swatch swatch-orange" data-bg="#fed7aa"></div>
+          <div class="rpanel-swatch swatch-red" data-bg="#fecaca"></div>
+          <div class="rpanel-swatch swatch-pink" data-bg="#fbcfe8"></div>
+          <div class="rpanel-swatch swatch-purple" data-bg="#e9d5ff"></div>
+          <div class="rpanel-swatch swatch-blue" data-bg="#bfdbfe"></div>
+          <div class="rpanel-swatch swatch-teal" data-bg="#a7f3d0"></div>
+          <div class="rpanel-swatch swatch-gray" data-bg="#e5e7eb"></div>
+        </div>
+        <div class="rpanel-size-row" style="margin-top:10px;">
+          <span class="rpanel-size-label">Opac.</span>
+          <input type="range" class="rpanel-slider" id="rp-bg-opacity-slider" min="0" max="1" step="0.05" value="1">
+          <span class="rpanel-size-val" id="rp-bg-opacity-val">100%</span>
+        </div>
+      </div>
+      <div class="rpanel-section">
+        <div class="rpanel-label">Borda</div>
+        <div class="rpanel-colors" id="rp-border-swatches">
+          <div class="rpanel-swatch swatch-b-none on" data-border="none"></div>
+          <div class="rpanel-swatch swatch-b-black" data-border="#1a1a18"></div>
+          <div class="rpanel-swatch swatch-b-yellow" data-border="#f59e0b"></div>
+          <div class="rpanel-swatch swatch-b-orange" data-border="#f97316"></div>
+          <div class="rpanel-swatch swatch-b-red" data-border="#ef4444"></div>
+          <div class="rpanel-swatch swatch-b-pink" data-border="#ec4899"></div>
+          <div class="rpanel-swatch swatch-b-purple" data-border="#a855f7"></div>
+          <div class="rpanel-swatch swatch-b-blue" data-border="#3b82f6"></div>
+          <div class="rpanel-swatch swatch-b-teal" data-border="#10b981"></div>
+          <div class="rpanel-swatch swatch-b-gray" data-border="#9ca3af"></div>
+        </div>
+      </div>
+      <div class="rpanel-section">
+        <div class="rpanel-label">Texto</div>
+        <div class="rpanel-colors" id="rp-text-swatches">
+          <div class="rpanel-swatch swatch-t-black on" data-tc="#1a1a18" title="Preto"></div>
+          <div class="rpanel-swatch swatch-t-white" data-tc="#ffffff" title="Branco"></div>
+          <div class="rpanel-swatch swatch-t-gray" data-tc="#6b7280" title="Cinza"></div>
+          <div class="rpanel-swatch swatch-t-red" data-tc="#ef4444" title="Vermelho"></div>
+          <div class="rpanel-swatch swatch-t-orange" data-tc="#f97316" title="Laranja"></div>
+          <div class="rpanel-swatch swatch-t-yellow" data-tc="#eab308" title="Amarelo"></div>
+          <div class="rpanel-swatch swatch-t-pink" data-tc="#ec4899" title="Rosa"></div>
+          <div class="rpanel-swatch swatch-t-purple" data-tc="#9333ea" title="Roxo"></div>
+          <div class="rpanel-swatch swatch-t-indigo" data-tc="#4f46e5" title="Índigo"></div>
+          <div class="rpanel-swatch swatch-t-blue" data-tc="#2563eb" title="Azul"></div>
+          <div class="rpanel-swatch swatch-t-cyan" data-tc="#06b6d4" title="Ciano"></div>
+          <div class="rpanel-swatch swatch-t-green" data-tc="#16a34a" title="Verde"></div>
+          <div class="rpanel-swatch swatch-t-lime" data-tc="#84cc16" title="Lima"></div>
+          <div class="rpanel-swatch swatch-t-brown" data-tc="#92400e" title="Marrom"></div>
+        </div>
+      </div>
+      <div class="rpanel-section">
+        <div class="rpanel-label">Tamanho do texto</div>
+        <div class="rpanel-size-row">
+          <span class="rpanel-size-label">Título</span>
+          <input type="range" class="rpanel-slider" id="rp-textsize-slider" min="9" max="30" step="1">
+          <span class="rpanel-size-val" id="rp-textsize-val">13px</span>
+        </div>
+        <div class="rpanel-size-row">
+          <span class="rpanel-size-label">Nota</span>
+          <input type="range" class="rpanel-slider" id="rp-notesize-slider" min="8" max="24" step="1">
+          <span class="rpanel-size-val" id="rp-notesize-val">11px</span>
+        </div>
+        <div class="rpanel-format-row">
+          <button class="rpanel-mini-btn" id="rp-bold-btn" title="Negrito">B</button>
+          <button class="rpanel-mini-btn" id="rp-italic-btn" title="Itálico"><em>I</em></button>
+          <button class="rpanel-mini-btn" id="rp-underline-btn" title="Sublinhado"><u>U</u></button>
+          <div style="width:1px;height:22px;background:var(--border);margin:0 2px;"></div>
+          <button class="rpanel-mini-btn" id="rp-align-left-btn" title="Esquerda"><i class="ti ti-align-left"></i></button>
+          <button class="rpanel-mini-btn" id="rp-align-center-btn" title="Centro"><i class="ti ti-align-center"></i></button>
+          <button class="rpanel-mini-btn" id="rp-align-right-btn" title="Direita"><i class="ti ti-align-right"></i></button>
+        </div>
+      </div>
+      <div class="rpanel-section">
+        <div class="rpanel-label">Posição do texto</div>
+        <div style="display:flex;gap:6px;margin-bottom:10px;">
+          <button class="rpanel-mini-btn on" id="rp-text-auto-btn" style="flex:1;font-size:11px;"><i class="ti ti-layout-align-center"></i> Auto</button>
+          <button class="rpanel-mini-btn" id="rp-text-manual-btn" style="flex:1;font-size:11px;"><i class="ti ti-adjustments-horizontal"></i> Manual</button>
+        </div>
+        <div id="rp-text-manual-controls" style="display:none;">
+          <div class="rpanel-size-row">
+            <span class="rpanel-size-label">Topo</span>
+            <input type="range" class="rpanel-slider" id="rp-textpadtop-slider" min="0" max="300" step="2" value="0">
+            <span class="rpanel-size-val" id="rp-textpadtop-val">0px</span>
+          </div>
+          <div class="rpanel-size-row" style="margin-top:6px;">
+            <span class="rpanel-size-label">Esquerda</span>
+            <input type="range" class="rpanel-slider" id="rp-textpadleft-slider" min="-100" max="100" step="2" value="0">
+            <span class="rpanel-size-val" id="rp-textpadleft-val">0px</span>
+          </div>
+        </div>
+        <div id="rp-text-auto-info" style="font-size:11px;color:var(--text3);line-height:1.4;">Centralizado automaticamente.</div>
+      </div>
+      <div class="rpanel-section">
+        <div class="rpanel-label">Imagem</div>
+        <button class="rpanel-file-btn" id="rp-image-btn"><i class="ti ti-photo-plus"></i> Adicionar imagem</button>
+        <button class="rpanel-file-btn" id="rp-remove-image-btn" style="margin-top:8px;"><i class="ti ti-photo-x"></i> Remover imagem</button>
+      </div>
+      <div class="rpanel-section">
+        <div class="rpanel-label">Espessura da borda</div>
+        <div class="rpanel-size-row" style="margin-top:6px;">
+          <input type="range" class="rpanel-slider" id="rp-bw-slider" min="0" max="6" step="0.5">
+          <span class="rpanel-size-val" id="rp-bw-val">2px</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB: Conexão -->
+    <div id="tab-conn" class="rpanel-tab-content" style="display:none;">
+      <div class="rpanel-section">
+        <div class="rpanel-label">Estilo da linha</div>
+        <select id="rp-conn-style" class="rpanel-input rpanel-select" style="margin-top:6px;">
+          <option value="curved">Curva</option>
+          <option value="straight">Reta</option>
+          <option value="stepped">Em degraus</option>
+          <option value="dashed">Tracejada</option>
+        </select>
+      </div>
+      <div class="rpanel-section">
+        <div class="rpanel-label">Curvatura</div>
+        <div class="rpanel-size-row" style="margin-top:6px;">
+          <input type="range" class="rpanel-slider" id="rp-conn-curve" min="-220" max="220" step="5" value="70">
+          <span class="rpanel-size-val" id="rp-conn-curve-val">70</span>
+        </div>
+      </div>
+      <div class="rpanel-section">
+        <div class="rpanel-label">Cor</div>
+        <div class="color-dots" id="rp-conn-colors">
+          <div class="cdot on" data-cc="default" style="background:var(--border2);"></div>
+          <div class="cdot" data-cc="#ef4444" style="background:#ef4444;"></div>
+          <div class="cdot" data-cc="#3b82f6" style="background:#3b82f6;"></div>
+          <div class="cdot" data-cc="#22c55e" style="background:#22c55e;"></div>
+          <div class="cdot" data-cc="#f59e0b" style="background:#f59e0b;"></div>
+          <div class="cdot" data-cc="#ec4899" style="background:#ec4899;"></div>
+          <div class="cdot" data-cc="#8b5cf6" style="background:#8b5cf6;"></div>
+        </div>
+      </div>
+      <div class="rpanel-section">
+        <div class="rpanel-label">Espessura</div>
+        <div class="rpanel-size-row" style="margin-top:6px;">
+          <input type="range" class="rpanel-slider" id="rp-conn-width" min="1" max="8" step="1" value="2">
+          <span class="rpanel-size-val" id="rp-conn-width-val">2px</span>
+        </div>
+      </div>
+      <div class="rpanel-section">
+        <div class="rpanel-label">Opacidade</div>
+        <div class="rpanel-size-row" style="margin-top:6px;">
+          <input type="range" class="rpanel-slider" id="rp-conn-opacity" min="0.1" max="1" step="0.05" value="1">
+          <span class="rpanel-size-val" id="rp-conn-opacity-val">100%</span>
+        </div>
+      </div>
+      <div class="rpanel-section">
+        <div class="rpanel-label">Setas</div>
+        <div class="rpanel-row" style="padding:6px 0;">
+          <label>Mostrar setas</label>
+          <div class="toggle on" id="rp-arrows-toggle"><div class="toggle-knob"></div></div>
+        </div>
+      </div>
+      <button class="panel-btn danger" id="rp-delete-conn-btn" style="margin-top:8px;"><i class="ti ti-trash"></i> Remover Conexão</button>
+    </div>
+  </div>
+</div>
+
+<!-- BOTTOM BAR -->
+<div id="bottom-bar">
+  <button class="bb-btn" id="bb-group" title="Agrupar"><i class="ti ti-layout-grid"></i></button>
+  <button class="bb-btn" id="bb-crop" title="Recortar"><i class="ti ti-crop"></i></button>
+  <button class="bb-btn" id="bb-lock" title="Bloquear"><i class="ti ti-lock"></i></button>
+  <button class="bb-btn" id="bb-minimize" title="Minimizar compacto"><i class="ti ti-minimize"></i></button>
+  <div class="bb-sep"></div>
+  <button class="bb-btn" id="bb-up" title="Para frente"><i class="ti ti-sort-ascending"></i></button>
+  <div class="bb-sep"></div>
+  <button class="bb-btn danger" id="bb-delete" title="Deletar"><i class="ti ti-trash"></i></button>
+  <div class="bb-sep"></div>
+  <button class="bb-btn" id="bb-copy" title="Duplicar"><i class="ti ti-copy"></i></button>
+  <button class="bb-btn" id="bb-more" title="Mais opções"><i class="ti ti-dots"></i></button>
+</div>
+
+<!-- Status bar -->
+<div id="status-bar"><span id="status-text">Cards: 0 | Conexões: 0 | Zoom: 100%</span></div>
+
+<!-- Context Menu -->
+<div id="ctx-menu">
+  <div class="ctx-item" id="ctx-edit"><i class="ti ti-edit"></i><span>Editar texto</span></div>
+  <div class="ctx-item" id="ctx-duplicate"><i class="ti ti-copy"></i><span>Duplicar</span></div>
+  <div class="ctx-item" id="ctx-lock"><i class="ti ti-lock"></i><span>Bloquear/Desbloquear</span></div>
+  <div class="ctx-item" id="ctx-minimize"><i class="ti ti-minimize"></i><span>Minimizar</span></div>
+  <div class="ctx-sep"></div>
+  <div class="ctx-item" id="ctx-add-sub"><i class="ti ti-corner-down-right"></i><span>Adicionar Subtópico</span></div>
+  <div class="ctx-item" id="ctx-add-button"><i class="ti ti-square-rounded-plus"></i><span>Adicionar Botão</span></div>
+  <div class="ctx-item" id="ctx-add-icon"><i class="ti ti-icons"></i><span>Adicionar Ícone</span></div>
+  <div class="ctx-item" id="ctx-add-image"><i class="ti ti-photo-plus"></i><span>Adicionar Imagem</span></div>
+  <div class="ctx-item" id="ctx-add-text"><i class="ti ti-text-plus"></i><span>Adicionar Texto</span></div>
+  <div class="ctx-item" id="ctx-add-note"><i class="ti ti-note"></i><span>Adicionar Nota</span></div>
+  <div class="ctx-item" id="ctx-add-card"><i class="ti ti-layout-cards"></i><span>Adicionar Card Interno</span></div>
+  <div class="ctx-sep"></div>
+  <div class="ctx-item" id="ctx-open-folder"><i class="ti ti-folder-open"></i><span>Abrir Pasta</span></div>
+  <div class="ctx-item" id="ctx-convert-type"><i class="ti ti-replace"></i><span>Converter Tipo</span></div>
+  <div class="ctx-sep"></div>
+  <div class="ctx-item" id="ctx-layer-front"><i class="ti ti-arrow-up-bar"></i><span>Trazer para Frente</span></div>
+  <div class="ctx-item" id="ctx-layer-back"><i class="ti ti-arrow-down-bar"></i><span>Enviar para Trás</span></div>
+  <div class="ctx-sep"></div>
+  <div class="ctx-item" id="ctx-style"><i class="ti ti-palette"></i><span>Editar Estilo</span></div>
+  <div class="ctx-item" id="ctx-shape"><i class="ti ti-shape"></i><span>Editar Forma</span></div>
+  <div class="ctx-item" id="ctx-animation"><i class="ti ti-sparkles"></i><span>Editar Animação</span></div>
+  <div class="ctx-item" id="ctx-behavior"><i class="ti ti-settings"></i><span>Editar Comportamento</span></div>
+  <div class="ctx-item" id="ctx-links"><i class="ti ti-link"></i><span>Editar Links</span></div>
+  <div class="ctx-sep"></div>
+  <div class="ctx-item danger" id="ctx-delete"><i class="ti ti-trash"></i><span>Deletar</span></div>
+</div>
+
+<!-- Emoji Picker -->
+<div id="emoji-picker"><div class="emoji-grid" id="emoji-grid"></div></div>
+
+<!-- Overlays & Modals -->
+<div class="overlay" id="overlay"></div>
+
+<!-- Settings Modal -->
+<div id="settings-modal">
+  <button class="sm-close" id="sm-close"><i class="ti ti-x"></i></button>
+  <div class="sm-sidebar">
+    <div class="sm-tab on" data-stab="appearance"><i class="ti ti-palette"></i><span>Aparência</span></div>
+    <div class="sm-tab" data-stab="connections"><i class="ti ti-line"></i><span>Conexões</span></div>
+    <div class="sm-tab" data-stab="autosave"><i class="ti ti-device-floppy"></i><span>Auto Save</span></div>
+    <div class="sm-tab" data-stab="export"><i class="ti ti-file-export"></i><span>Exportar</span></div>
+  </div>
+  <div class="sm-content">
+    <div class="sm-section on" data-ssec="appearance">
+      <div class="sm-header">Aparência</div>
+      <div style="margin-bottom:16px;"><div class="prop-label">Tema</div>
+        <div class="theme-grid">
+          <div class="theme-opt on" data-theme="light"><div class="theme-preview theme-light-p"><div class="preview-bar" style="background:#fafaf9;"></div><div class="preview-bar" style="background:#e0e0dd;"></div><div class="preview-bar" style="background:#2a2a28;"></div></div><span style="font-size:13px;font-weight:500;">Claro</span></div>
+          <div class="theme-opt" data-theme="dark"><div class="theme-preview theme-dark-p"><div class="preview-bar" style="background:#1a1a18;"></div><div class="preview-bar" style="background:#3a3a38;"></div><div class="preview-bar" style="background:#e8e8e5;"></div></div><span style="font-size:13px;font-weight:500;">Escuro</span></div>
+        </div>
+      </div>
+      <div class="sm-option"><div class="sm-option-info"><div class="sm-option-title">Grid no Canvas</div><div class="sm-option-desc">Mostrar grid de referência</div></div><div class="toggle on" id="toggle-grid"><div class="toggle-knob"></div></div></div>
+      <div class="sm-option"><div class="sm-option-info"><div class="sm-option-title">Sombras nos Cards</div><div class="sm-option-desc">Adicionar sombras suaves</div></div><div class="toggle on" id="toggle-shadows"><div class="toggle-knob"></div></div></div>
+      <div class="sm-option"><div class="sm-option-info"><div class="sm-option-title">Minimizar Automático</div><div class="sm-option-desc">Cards não selecionados ficam menores</div></div><div class="toggle" id="toggle-auto-minimize"><div class="toggle-knob"></div></div></div>
+    </div>
+    <div class="sm-section" data-ssec="connections">
+      <div class="sm-header">Conexões</div>
+      <div class="prop-group"><div class="prop-label">Estilo Padrão</div>
+        <select id="default-conn-style" class="rpanel-input rpanel-select"><option value="curved" selected>Curva</option><option value="straight">Reta</option><option value="stepped">Degraus</option><option value="dashed">Tracejada</option></select>
+      </div>
+      <div class="sm-option"><div class="sm-option-info"><div class="sm-option-title">Mostrar Setas</div><div class="sm-option-desc">Indicar direção do fluxo</div></div><div class="toggle on" id="toggle-arrows"><div class="toggle-knob"></div></div></div>
+      <div class="sm-option"><div class="sm-option-info"><div class="sm-option-title">Destacar ao Selecionar</div><div class="sm-option-desc">Realçar conexões do card selecionado</div></div><div class="toggle on" id="toggle-highlight-conn"><div class="toggle-knob"></div></div></div>
+    </div>
+    <div class="sm-section" data-ssec="autosave">
+      <div class="sm-header">Salvamento Automático</div>
+      <div class="sm-option"><div class="sm-option-info"><div class="sm-option-title">Auto Save</div><div class="sm-option-desc">Salvar automaticamente no navegador</div></div><div class="toggle on" id="toggle-autosave"><div class="toggle-knob"></div></div></div>
+      <div class="sm-option"><div class="sm-option-info"><div class="sm-option-title">Restaurar ao Abrir</div><div class="sm-option-desc">Carregar última sessão</div></div><div class="toggle on" id="toggle-restore"><div class="toggle-knob"></div></div></div>
+      <div style="margin-top:16px;"><button class="panel-btn danger" id="clear-save-btn"><i class="ti ti-trash"></i> Limpar Dados Salvos</button><div style="margin-top:8px;font-size:11px;color:var(--text3);text-align:center;">Último save: <span id="last-save-time">Nunca</span></div></div>
+    </div>
+    <div class="sm-section" data-ssec="export">
+      <div class="sm-header">Exportar / Importar</div>
+      <div class="prop-group"><button class="panel-btn" id="btn-export-json"><i class="ti ti-download"></i> Exportar JSON</button></div>
+      <div class="prop-group"><button class="panel-btn" id="btn-import-json"><i class="ti ti-upload"></i> Importar JSON</button><input type="file" id="import-file" accept=".json" style="display:none;">
+<input type="file" id="image-file" accept="image/*" style="display:none;"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Add Action Modal -->
+<div class="modal" id="modal-action">
+  <div class="modal-hdr">Adicionar Ação</div>
+  <div class="modal-body">
+    <div class="prop-group"><div class="prop-label">Tipo</div>
+      <select id="action-type" class="rpanel-input rpanel-select">
+        <option value="url">Abrir link externo</option>
+        <option value="folder">Abrir pasta</option>
+        <option value="card">Abrir card</option>
+        <option value="wormhole">Wormhole / #Projeto</option>
+      </select>
+    </div>
+    <div class="prop-group"><div class="prop-label">Destino</div>
+      <input type="text" id="action-dest" class="rpanel-input" placeholder="https://...">
+    </div>
+  </div>
+  <div class="modal-ftr">
+    <button class="modal-btn" id="action-cancel">Cancelar</button>
+    <button class="modal-btn primary" id="action-ok">Adicionar</button>
+  </div>
+</div>
+
+<div class="modal" id="modal-shapes" style="max-width:600px;width:min(600px,92vw);">
+  <div class="modal-hdr">Selecionar Forma</div>
+  <div class="modal-body">
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;">
+      <div class="shape-option" data-shape="rectangle"><div class="shape-preview shape-rect"></div><div class="shape-name">Retângulo</div></div>
+      <div class="shape-option" data-shape="square"><div class="shape-preview shape-square"></div><div class="shape-name">Quadrado</div></div>
+      <div class="shape-option" data-shape="rounded"><div class="shape-preview shape-rounded"></div><div class="shape-name">Arredondado</div></div>
+      <div class="shape-option" data-shape="circle"><div class="shape-preview shape-circle"></div><div class="shape-name">Círculo</div></div>
+      <div class="shape-option" data-shape="pill"><div class="shape-preview shape-pill"></div><div class="shape-name">Cápsula</div></div>
+      <div class="shape-option" data-shape="hexagon"><div class="shape-preview shape-hexagon"></div><div class="shape-name">Hexágono</div></div>
+      <div class="shape-option" data-shape="octagon"><div class="shape-preview shape-octagon"></div><div class="shape-name">Octógono</div></div>
+      <div class="shape-option" data-shape="diamond"><div class="shape-preview shape-diamond"></div><div class="shape-name">Losango</div></div>
+      <div class="shape-option" data-shape="triangle"><div class="shape-preview shape-triangle"></div><div class="shape-name">Triângulo</div></div>
+      <div class="shape-option" data-shape="star"><div class="shape-preview shape-star"></div><div class="shape-name">Estrela</div></div>
+    </div>
+  </div>
+  <div class="modal-ftr">
+    <button class="modal-btn" id="shapes-cancel">Cancelar</button>
+  </div>
+</div>
+
+<!-- Style Selector Modal -->
+<div class="modal" id="modal-styles" style="max-width:600px;width:min(600px,92vw);">
+  <div class="modal-hdr">Selecionar Estilo Visual</div>
+  <div class="modal-body">
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;">
+      <div class="style-option" data-style="clean"><div class="style-preview style-clean"></div><div class="style-name">Clean</div></div>
+      <div class="style-option" data-style="minimal"><div class="style-preview style-minimal"></div><div class="style-name">Minimalista</div></div>
+      <div class="style-option" data-style="neon"><div class="style-preview style-neon"></div><div class="style-name">Neon</div></div>
+      <div class="style-option" data-style="futuristic"><div class="style-preview style-futuristic"></div><div class="style-name">Futurista</div></div>
+      <div class="style-option" data-style="glassmorphism"><div class="style-preview style-glass"></div><div class="style-name">Glass</div></div>
+      <div class="style-option" data-style="darktech"><div class="style-preview style-dark"></div><div class="style-name">Dark Tech</div></div>
+      <div class="style-option" data-style="3d"><div class="style-preview style-3d"></div><div class="style-name">3D</div></div>
+      <div class="style-option" data-style="soft"><div class="style-preview style-soft"></div><div class="style-name">Soft Shadows</div></div>
+      <div class="style-option" data-style="cyberpunk"><div class="style-preview style-cyber"></div><div class="style-name">Cyberpunk</div></div>
+      <div class="style-option" data-style="terminal"><div class="style-preview style-terminal"></div><div class="style-name">Terminal</div></div>
+      <div class="style-option" data-style="material"><div class="style-preview style-material"></div><div class="style-name">Material</div></div>
+      <div class="style-option" data-style="outline"><div class="style-preview style-outline"></div><div class="style-name">Outline</div></div>
+    </div>
+  </div>
+  <div class="modal-ftr">
+    <button class="modal-btn" id="styles-cancel">Cancelar</button>
+  </div>
+</div>
+
+<!-- Project Manager Modal -->
+<div class="modal" id="modal-projects" style="max-width:500px;">
+  <div class="modal-hdr">Gerenciar Projetos</div>
+  <div class="modal-body">
+    <div class="prop-group">
+      <button class="panel-btn" id="new-project-btn"><i class="ti ti-plus"></i> Novo Projeto</button>
+    </div>
+    <div class="prop-group">
+      <div class="prop-label">Projetos Existentes</div>
+      <div id="projects-list" style="max-height:300px;overflow-y:auto;"></div>
+    </div>
+  </div>
+  <div class="modal-ftr">
+    <button class="modal-btn" id="projects-close">Fechar</button>
+  </div>
+</div>
+
+<!-- Wormhole/Link Editor Modal -->
+<div class="modal" id="modal-wormhole">
+  <div class="modal-hdr">Adicionar Wormhole</div>
+  <div class="modal-body">
+    <div class="prop-group">
+      <div class="prop-label">Tipo de Link</div>
+      <select id="wormhole-type" class="rpanel-input rpanel-select">
+        <option value="project">#Projeto</option>
+        <option value="card">@Card</option>
+        <option value="folder">!Pasta</option>
+        <option value="note">nota:Nome</option>
+      </select>
+    </div>
+    <div class="prop-group">
+      <div class="prop-label">Destino</div>
+      <input type="text" id="wormhole-target" class="rpanel-input" placeholder="Nome do elemento">
+    </div>
+    <div class="prop-group">
+      <div class="prop-label">Texto do Link</div>
+      <input type="text" id="wormhole-label" class="rpanel-input" placeholder="Ex: Ver projeto financeiro">
+    </div>
+  </div>
+  <div class="modal-ftr">
+    <button class="modal-btn" id="wormhole-cancel">Cancelar</button>
+    <button class="modal-btn primary" id="wormhole-ok">Adicionar</button>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════ -->
+<!-- DASHBOARD DE PROJETOS (Tela Inicial) -->
+<!-- ══════════════════════════════════════════════════════════════ -->
+<div id="project-dashboard" style="display:none;">
+  <div class="dashboard-header">
+    <div class="dashboard-logo">
+      <div class="logo-text">MySpace</div>
+      <div class="logo-badge">v2.4 Final</div>
+    </div>
+    <button class="dashboard-btn" id="dash-settings"><i class="ti ti-settings"></i> Configurações</button>
+  </div>
+  
+  <div class="dashboard-content">
+    <div class="dashboard-title">Meus Projetos</div>
+    <div class="dashboard-subtitle">Selecione um projeto para começar ou crie um novo</div>
+    
+    <button class="dashboard-new-project" id="dash-new-project">
+      <i class="ti ti-plus"></i>
+      <span>Criar Novo Projeto</span>
+    </button>
+    
+    <div class="dashboard-projects" id="dash-projects-grid"></div>
+  </div>
+</div>
+
+<div id="project-card-menu-popover" class="project-card-menu-popover"></div>
+
+<script src="./js/state.js"></script>
+<script src="./js/helpers.js"></script>
+<script src="./js/draw.js"></script>
+<script src="./js/editing.js"></script>
+<script src="./js/history.js"></script>
+<script src="./js/menus.js"></script>
+<script src="./js/ui.js"></script>
+<script src="./js/init.js"></script>
+<script src="./js/hud.js"></script>
+<script src="./js/patches.js"></script>
+<script src="./js/extensions.js"></script>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="./config.js"></script>
+<script src="./auth-paywall.js"></script>
+<script src="./ai-assistant.js"></script><script src="./myspace-fixes.js"></script>
+<script src="./ai-bridge-color-patch.js"></script>
+
+
+</body>
+</html>
