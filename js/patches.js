@@ -67,6 +67,8 @@
     return readableTextColor(bgFill, colorOf(node.textColor, cssVar('--text')));
   }
   function drawIconOnly(node,isSel){
+    // Ícone sempre quadrado — sincroniza height com width
+    if(node.type==='icon') node.height = node.width;
     const h=node.height, w=node.width, x=node.x, y=node.y;
     const icon=node.emoji || (node.type==='folder'?'📁':node.type==='note'?'🗒️':'⭐');
     const size=node.iconSize || (node.type==='icon'?42:44); // proporcional
